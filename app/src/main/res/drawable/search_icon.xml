@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="57dp"
+    android:height="57dp"
+    android:viewportWidth="57"
+    android:viewportHeight="57">
+
+    <!-- Magnifying glass circle with gradient fill -->
+    <path
+        android:fillType="evenOdd"
+        android:pathData="M8,24
+                          C8,15.1634 15.1634,8 24,8
+                          C32.8366,8 40,15.1634 40,24
+                          C40,32.8366 32.8366,40 24,40
+                          C15.1634,40 8,32.8366 8,24
+                          Z
+                          M24,0
+                          C10.7452,0 0,10.7452 0,24
+                          C0,37.2548 10.7452,48 24,48
+                          C28.635,48 32.9631,46.6861 36.6322,44.4104
+                          L47.6109,55.3891
+                          C49.7588,57.537 53.2412,57.537 55.3891,55.3891
+                          C57.537,53.2412 57.537,49.7588 55.3891,47.6109
+                          L44.4104,36.6322
+                          C46.6861,32.9631 48,28.635 48,24
+                          C48,10.7452 37.2548,0 24,0
+                          Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="17"
+                android:startY="-5"
+                android:endX="17"
+                android:endY="47">
+                <item android:offset="0" android:color="#9C2CF3"/>
+                <item android:offset="1" android:color="#3A49F9"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+</vector>
