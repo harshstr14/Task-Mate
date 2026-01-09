@@ -252,7 +252,7 @@ fun CalendarScreen(navController: NavController) {
 
                         Text(
                             text = date.month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH),
-                            fontSize = 11.sp,
+                            fontSize = 11.sp, lineHeight = 14.sp,
                             fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             color = textColor,
                             modifier = Modifier.constrainAs(month) {
@@ -265,7 +265,7 @@ fun CalendarScreen(navController: NavController) {
                         Text(
                             text = date.dayOfMonth.toString(),
                             fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                            fontSize = 19.sp,
+                            fontSize = 19.sp, lineHeight = 22.sp,
                             color = textColor,
                             modifier = Modifier.constrainAs(day) {
                                 centerTo(parent)
@@ -275,7 +275,7 @@ fun CalendarScreen(navController: NavController) {
                         Text(
                             text = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH),
                             fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                            fontSize = 11.sp,
+                            fontSize = 11.sp, lineHeight = 14.sp,
                             color = textColor,
                             modifier = Modifier.constrainAs(week) {
                                 bottom.linkTo(parent.bottom)
@@ -422,7 +422,7 @@ fun CalendarScreen(navController: NavController) {
                             bottom.linkTo(text2.top)
                             start.linkTo(parent.start)
                         }.fillMaxWidth().padding(start = 14.dp, end = 65.dp), fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                            fontSize = 11.sp, color = Color(0xFF6E6A7C), maxLines = 1
+                            fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 1
                         )
 
                         Text(taskListTopic, modifier = Modifier.constrainAs(text2) {
@@ -430,7 +430,7 @@ fun CalendarScreen(navController: NavController) {
                             bottom.linkTo(parent.bottom)
                             start.linkTo(parent.start)
                         }.fillMaxWidth().padding(start = 14.dp, end = 65.dp), fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                            fontSize = 14.sp, color = Color(0xFF24252C), maxLines = 1
+                            fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF24252C), maxLines = 1
                         )
 
                         Image(modifier = Modifier.constrainAs(clock) {
@@ -443,7 +443,7 @@ fun CalendarScreen(navController: NavController) {
                             start.linkTo(clock.end, margin = 2.dp)
                             bottom.linkTo(clock.bottom)
                         }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                            fontSize = 11.sp, color = Color(0xFFAB94FF), maxLines = 1
+                            fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFFAB94FF), maxLines = 1
                         )
 
                         Box(modifier = Modifier.constrainAs(boxShape) {
