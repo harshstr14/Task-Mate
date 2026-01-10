@@ -1,4 +1,4 @@
-package com.example.taskmate.addtask
+package com.example.taskmate.updatetask
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -66,12 +66,13 @@ import androidx.compose.ui.zIndex
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import com.example.taskmate.R
+import com.example.taskmate.addtask.DateType
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun AddTaskScreen() {
+fun UpdateTaskScreen() {
     val fonts = FontFamily(
         Font(R.font.merriweathersans_bold, FontWeight.Bold),
         Font(R.font.merriweathersans_semibold, FontWeight.SemiBold),
@@ -121,7 +122,7 @@ fun AddTaskScreen() {
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
         val(column,text1,box1,category,addButton,taskGroup,taskCategory) = createRefs()
 
-        Text("Add Task", modifier = Modifier.constrainAs(text1) {
+        Text("Task", modifier = Modifier.constrainAs(text1) {
             top.linkTo(parent.top, margin = 20.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
@@ -691,7 +692,7 @@ fun AddTaskScreen() {
                 contentColor = Color(0xFFFFFFFF)
             ) , shape = RoundedCornerShape(10.dp)) {
 
-            Text("Add Task", fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
+            Text("Update Task", fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                 fontSize = 18.sp)
         }
     }
@@ -822,5 +823,5 @@ fun AddTaskScreen() {
 @Preview(showSystemUi = true)
 @Composable
 private fun ShowAddTask() {
-    AddTaskScreen()
+    UpdateTaskScreen()
 }

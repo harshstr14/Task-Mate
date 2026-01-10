@@ -40,6 +40,7 @@ import com.example.taskmate.navigation.BottomNavRoute
 import com.example.taskmate.notification.NotificationScreen
 import com.example.taskmate.search.SearchScreen
 import com.example.taskmate.ui.theme.TaskMateTheme
+import com.example.taskmate.updatetask.UpdateTaskScreen
 
 class MainScreen : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,7 +70,7 @@ fun Main_Screen() {
             modifier = Modifier.padding(paddingValues)
         ) {
             composable(BottomNavRoute.Home.route) {
-                HomeScreen()  // ⬅ current Home UI
+                HomeScreen(navController)  // ⬅ current Home UI
             }
             composable(BottomNavRoute.Calendar.route) {
                 CalendarScreen(navController)
@@ -82,6 +83,9 @@ fun Main_Screen() {
             }
             composable(BottomNavRoute.AddTask.route) {
                 AddTaskScreen()
+            }
+            composable(BottomNavRoute.UpdateTask.route) {
+                UpdateTaskScreen()
             }
         }
     }

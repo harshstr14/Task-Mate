@@ -67,14 +67,16 @@ import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlin.text.toInt
+import kotlin.toString
 
+val fonts = FontFamily(
+    Font(R.font.merriweathersans_bold, FontWeight.Bold),
+    Font(R.font.merriweathersans_semibold, FontWeight.SemiBold),
+    Font(R.font.merriweathersans_regular, FontWeight.Normal)
+)
 @Composable
 fun CalendarScreen(navController: NavController) {
-    val fonts = FontFamily(
-        Font(R.font.merriweathersans_bold, FontWeight.Bold),
-        Font(R.font.merriweathersans_semibold, FontWeight.SemiBold),
-        Font(R.font.merriweathersans_regular, FontWeight.Normal)
-    )
 
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -127,7 +129,7 @@ fun CalendarScreen(navController: NavController) {
         val(text1,arrowLeft,arrowRight,addButton,dateButton,datesRow,categories,taskListsColumn) = createRefs()
 
         Text(currentMonth.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH) + ", ${currentMonth.year}", modifier = Modifier.constrainAs(text1) {
-            top.linkTo(parent.top, margin = 25.dp)
+            top.linkTo(parent.top, margin = 20.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
         }.clickable {
@@ -293,7 +295,7 @@ fun CalendarScreen(navController: NavController) {
         )
 
         var selectedCategoryIndex by remember { mutableIntStateOf(0) }
-        
+
         LazyRow(modifier = Modifier.constrainAs(categories) {
             top.linkTo(datesRow.bottom, margin = 28.dp)
             start.linkTo(parent.start)

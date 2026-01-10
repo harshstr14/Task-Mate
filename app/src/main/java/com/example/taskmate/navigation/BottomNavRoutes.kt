@@ -6,4 +6,5 @@ sealed class BottomNavRoute(val route: String) {
     object Notification : BottomNavRoute("notification")
     object Search : BottomNavRoute("search")
     object AddTask : BottomNavRoute("add_task")
+    object UpdateTask : BottomNavRoute("update_task")
 }

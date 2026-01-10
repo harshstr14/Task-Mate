@@ -1,5 +1,6 @@
 package com.example.taskmate.home
 
+import android.content.Context
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -49,7 +50,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
+import androidx.core.content.edit
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.example.taskmate.R
+import com.example.taskmate.navigation.BottomNavRoute
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 val fonts = FontFamily(
     Font(R.font.merriweathersans_bold, FontWeight.Bold),
@@ -69,14 +76,33 @@ val taskGroupsIconsColors = listOf(
     Color(0xFFFFE6D4),
     Color(0xFFFFF6D4)
 )
+object TaskPrefs {
+
+    private const val PREF_NAME = "task_prefs"
+    private const val KEY_TASKS = "in_progress_tasks"
+
+    fun saveTasks(context: Context, tasks: List<InProgressTask>) {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val json = Gson().toJson(tasks)
+        prefs.edit { putString(KEY_TASKS, json) }
+    }
+
+    fun loadTasks(context: Context): List<InProgressTask> {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val json = prefs.getString(KEY_TASKS, null) ?: return emptyList()
+
+        val type = object : TypeToken<List<InProgressTask>>() {}.type
+        return Gson().fromJson(json, type)
+    }
+}
 @Composable
-fun HomeScreen() {
+fun HomeScreen(navController: NavController) {
 
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
         val(profileImage,text1,nameText,card,text2,circle1,lazyRow,lazyColumn,
             text3,circle2) = createRefs()
 
-        ProfileView(modifier1 = Modifier.constrainAs(profileImage) {
+        ProfileView(modifier = Modifier.constrainAs(profileImage) {
             top.linkTo(parent.top, margin = 15.dp)
             start.linkTo(parent.start, margin = 22.dp)
         }.size(52.dp).clip(CircleShape),
@@ -126,7 +152,7 @@ fun HomeScreen() {
             top.linkTo(text2.bottom, margin = 15.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
-        })
+        }, navController)
         
         Text("Task Groups", modifier = Modifier.constrainAs(text3) {
             top.linkTo(lazyRow.bottom, margin = 22.dp)
@@ -166,10 +192,10 @@ fun HomeScreen() {
 }
 
 @Composable
-private fun ProfileView(modifier1: Modifier,modifier2: Modifier,modifier3: Modifier) {
+private fun ProfileView(modifier: Modifier,modifier2: Modifier,modifier3: Modifier) {
     Image(painter = painterResource(R.drawable.picofme), contentDescription = "profile Image",
         contentScale = ContentScale.Crop,
-        modifier = modifier1
+        modifier = modifier
     )
 
     Text("Hello!", modifier = modifier2, fontFamily = fonts, fontWeight = FontWeight.Normal, fontStyle = FontStyle.Normal,
@@ -267,21 +293,16 @@ private fun TodayTaskProgress(modifier: Modifier) {
 }
 
 @Composable
-private fun InProgressTasks(modifier: Modifier) {
+private fun InProgressTasks(modifier: Modifier, navController: NavController) {
     var progressBarLevel by remember { mutableFloatStateOf(0f) }
 
-    val cardColors = listOf(
-        Color(0xFFE7F3FF),
-        Color(0xFFFFF3E0),
-        Color(0xFFE8F5E9),
-        Color(0xFFFFEBEE)
+    val taskCardsColors = listOf(
+        Pair(Color(0xFFE7F3FF), Color(0xFF0087FF)),
+        Pair(Color(0xFFFFF3E0), Color(0xFFFF9800)),
+        Pair(Color(0xFFE8F5E9), Color(0xFF4CAF50)),
+        Pair(Color(0xFFFFEBEE), Color(0xFFF44336))
     )
-    val progressBarColors = listOf(
-        Color(0xFF0087FF),
-        Color(0xFFFF9800),
-        Color(0xFF4CAF50),
-        Color(0xFFF44336)
-    )
+
     val taskGroups = listOf(
         "Office Project",
         "Personal Project",
@@ -299,8 +320,7 @@ private fun InProgressTasks(modifier: Modifier) {
     LazyRow(modifier = modifier, contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         items(4){ index ->
 
-            val backgroundColor = cardColors[index % cardColors.size]
-            val progressColor = progressBarColors[index % progressBarColors.size]
+            val taskCardColor = taskCardsColors[index % taskCardsColors.size]
             val taskGroup = taskGroups[index % taskGroups.size]
             val taskGroupIcon = taskGroupsIcons[index % taskGroupsIcons.size]
             val taskGroupIconColor = taskGroupsIconsColors[index % taskGroupsIconsColors.size]
@@ -309,22 +329,22 @@ private fun InProgressTasks(modifier: Modifier) {
             ElevatedCard(elevation = CardDefaults.cardElevation(
                 defaultElevation = 0.dp
             ), colors = CardDefaults.cardColors(
-                containerColor = backgroundColor
+                containerColor = taskCardColor.first
             ), modifier = Modifier.size(202.dp,116.dp).shadow(
                 elevation = 12.dp,
                 shape = RoundedCornerShape(19.dp),
-                ambientColor = backgroundColor.copy(alpha = 0.2f),
-                spotColor = backgroundColor.copy(alpha = 0.4f)
-            ),shape = RoundedCornerShape(19.dp))
+                ambientColor = taskCardColor.first.copy(alpha = 0.2f),
+                spotColor = taskCardColor.first.copy(alpha = 0.4f)
+            ), onClick = { navController.navigate(BottomNavRoute.UpdateTask.route)},shape = RoundedCornerShape(19.dp))
             {
                 ConstraintLayout(modifier = Modifier.fillMaxSize()) {
                     val(text1,text2,progressBar,boxShape) = createRefs()
 
                     Text(taskGroup, modifier = Modifier.constrainAs(text1) {
                         top.linkTo(parent.top, margin = 16.dp)
-                        start.linkTo(parent.start, margin = 16.dp)
-                    }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                        fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C)
+                        start.linkTo(parent.start)
+                    }.fillMaxWidth().padding(start = 16.dp, end = 42.dp), fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
+                        fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 1
                     )
 
                     Text(task, modifier = Modifier.constrainAs(text2) {
@@ -358,7 +378,7 @@ private fun InProgressTasks(modifier: Modifier) {
                                 .fillMaxHeight()
                                 .fillMaxWidth(animatedProgress)
                                 .clip(RoundedCornerShape(50))
-                                .background(progressColor) // progress color
+                                .background(taskCardColor.second) // progress color
                         )
                     }
 
@@ -512,5 +532,6 @@ private fun TaskGroups(modifier: Modifier) {
 @Preview(showSystemUi = true)
 @Composable
 private fun ShowHomeScreen() {
-    HomeScreen()
+    val navController = rememberNavController()
+    HomeScreen(navController = navController)
 }
