@@ -67,8 +67,6 @@ import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
-import kotlin.text.toInt
-import kotlin.toString
 
 val fonts = FontFamily(
     Font(R.font.merriweathersans_bold, FontWeight.Bold),

@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -41,7 +42,7 @@ fun NotificationScreen() {
     )
 
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-        val(text1,text2,text3,lazyColumn) = createRefs()
+        val(text1,text2,text3,icon,text4,lazyColumn) = createRefs()
 
         Text("Notification", modifier = Modifier.constrainAs(text1) {
             top.linkTo(parent.top, margin = 20.dp)
@@ -63,6 +64,23 @@ fun NotificationScreen() {
             end.linkTo(parent.end, margin = 20.dp)
         }, fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
             color = Color(0xFF5F33E1)
+        )
+
+        Icon(painter = painterResource(R.drawable.empty_notification), contentDescription = "empty_notification",
+            tint = Color(0xFF5F33E1), modifier = Modifier.constrainAs(icon) {
+                top.linkTo(parent.top)
+                bottom.linkTo(parent.bottom)
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+            }.size(92.dp)
+        )
+
+        Text("No Notifications", modifier = Modifier.constrainAs(text4) {
+            top.linkTo(icon.bottom)
+            start.linkTo(parent.start)
+            end.linkTo(parent.end)
+        }, fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
+            color = Color(0xFF24252C)
         )
 
         val taskGroups = listOf(
@@ -100,7 +118,7 @@ fun NotificationScreen() {
             height = Dimension.fillToConstraints
         },contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp))
         {
-            items(4) { index ->
+            items(0) { index ->
                 val taskGroupIcon = taskGroupsIcons[index % taskGroupsIcons.size]
                 val taskGroupIconColor = taskGroupsIconsColors[index % taskGroupsIconsColors.size]
                 val taskGroup = taskGroups[index % taskGroups.size]

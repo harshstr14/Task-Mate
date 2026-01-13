@@ -44,6 +44,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.lottie.compose)
     implementation(libs.gson)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.constraintlayout.compose)
@@ -59,6 +60,7 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.window)
     implementation(libs.androidx.compose.animation)
+    implementation(libs.androidx.material3)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

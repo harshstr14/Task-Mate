@@ -35,6 +35,8 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Typography
@@ -45,6 +47,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,6 +56,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -66,12 +70,20 @@ import androidx.compose.ui.zIndex
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import com.example.taskmate.R
+import com.example.taskmate.home.TaskGroup
+import com.example.taskmate.home.TaskPrefs
+import com.example.taskmate.home.Tasks
+import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun AddTaskScreen() {
+fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     val fonts = FontFamily(
         Font(R.font.merriweathersans_bold, FontWeight.Bold),
         Font(R.font.merriweathersans_semibold, FontWeight.SemiBold),
@@ -92,12 +104,8 @@ fun AddTaskScreen() {
     var endDate by remember { mutableStateOf<LocalDate?>(null) }
     var dateError by remember { mutableStateOf(false) }
 
-    var startDateText by remember {
-        mutableStateOf("Select date")
-    }
-    var endDateText by remember {
-        mutableStateOf("Select date")
-    }
+    var startDateText by remember { mutableStateOf("Select date") }
+    var endDateText by remember { mutableStateOf("Select date") }
 
     var expanded by remember { mutableStateOf(false) }
     var expandedCategory by remember { mutableStateOf(false) }
@@ -105,6 +113,7 @@ fun AddTaskScreen() {
     var selectedCategory by remember { mutableStateOf("Task") }
     var selectedGroupBG by remember { mutableStateOf(Color(0xFFFFE4F2)) }
     var selectedGroupIcon by remember { mutableIntStateOf(R.drawable.briefcase) }
+
     val rotationArrow by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
         label = "arrowRotation"
@@ -114,9 +123,9 @@ fun AddTaskScreen() {
         label = "arrowRotation"
     )
 
-    var taskGroupName by remember { mutableStateOf("Enter Task Group Name") }
-    var taskName by remember { mutableStateOf("Enter Task Name") }
-    var description by remember { mutableStateOf("Enter Task Description") }
+    var taskGroupName by remember { mutableStateOf("") }
+    var taskName by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
 
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
         val(column,text1,box1,category,addButton,taskGroup,taskCategory) = createRefs()
@@ -184,10 +193,10 @@ fun AddTaskScreen() {
         }
 
         val taskGroups = listOf(
-            "Work",
-            "Personal",
-            "Study",
-            "Daily Study"
+            TaskGroup.WORK,
+            TaskGroup.PERSONAL,
+            TaskGroup.STUDY,
+            TaskGroup.DAILY_STUDY
         )
         val taskGroupsIcons = listOf(
             R.drawable.briefcase,
@@ -409,7 +418,7 @@ fun AddTaskScreen() {
                     contentAlignment = Alignment.Center
                 ) {
                     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-                        val(text1,text2) = createRefs()
+                        val(text1,text2,text3) = createRefs()
 
                         Text("Task Group Name", modifier = Modifier.constrainAs(text1) {
                             top.linkTo(parent.top, margin = 12.dp)
@@ -417,6 +426,19 @@ fun AddTaskScreen() {
                         }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             fontSize = 9.sp, lineHeight = 12.sp, color = Color(0xFF6E6A7C)
                         )
+
+                        if (taskGroupName.isEmpty()) {
+                            Text(modifier = Modifier.constrainAs(text3) {
+                                        top.linkTo(text1.bottom, margin = 8.dp)
+                                        start.linkTo(parent.start, margin = 15.dp) },
+                                text = "Enter Task Group Name",
+                                fontFamily = fonts,
+                                fontWeight = FontWeight.SemiBold,
+                                fontStyle = FontStyle.Normal,
+                                fontSize = 14.sp, lineHeight = 17.sp,
+                                color = Color(0xFF24252C)
+                            )
+                        }
 
                         val selectionColors = TextSelectionColors(
                             handleColor = Color(0xFFAB94FF),
@@ -462,7 +484,7 @@ fun AddTaskScreen() {
                     contentAlignment = Alignment.Center
                 ) {
                     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-                        val(text1,text2) = createRefs()
+                        val(text1,text2,text3) = createRefs()
 
                         Text("Task Name", modifier = Modifier.constrainAs(text1) {
                             top.linkTo(parent.top, margin = 12.dp)
@@ -470,6 +492,19 @@ fun AddTaskScreen() {
                         }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             fontSize = 9.sp, lineHeight = 12.sp, color = Color(0xFF6E6A7C)
                         )
+
+                        if (taskName.isEmpty()) {
+                            Text(modifier = Modifier.constrainAs(text3) {
+                                top.linkTo(text1.bottom, margin = 8.dp)
+                                start.linkTo(parent.start, margin = 15.dp) },
+                                text = "Enter Task Name",
+                                fontFamily = fonts,
+                                fontWeight = FontWeight.SemiBold,
+                                fontStyle = FontStyle.Normal,
+                                fontSize = 14.sp, lineHeight = 17.sp,
+                                color = Color(0xFF24252C)
+                            )
+                        }
 
                         val selectionColors = TextSelectionColors(
                             handleColor = Color(0xFFAB94FF),
@@ -515,7 +550,7 @@ fun AddTaskScreen() {
                     contentAlignment = Alignment.Center
                 ) {
                     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-                        val(text1,text2) = createRefs()
+                        val(text1,text2,text3) = createRefs()
 
                         Text("Description", modifier = Modifier.constrainAs(text1) {
                             top.linkTo(parent.top, margin = 12.dp)
@@ -523,6 +558,19 @@ fun AddTaskScreen() {
                         }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             fontSize = 9.sp, lineHeight = 12.sp, color = Color(0xFF6E6A7C)
                         )
+
+                        if (description.isEmpty()) {
+                            Text(modifier = Modifier.constrainAs(text3) {
+                                top.linkTo(text1.bottom, margin = 8.dp)
+                                start.linkTo(parent.start, margin = 15.dp) },
+                                text = "Enter Task Description",
+                                fontFamily = fonts,
+                                fontWeight = FontWeight.SemiBold,
+                                fontStyle = FontStyle.Normal,
+                                fontSize = 11.sp,
+                                color = Color(0xFF24252C)
+                            )
+                        }
 
                         val selectionColors = TextSelectionColors(
                             handleColor = Color(0xFFAB94FF),
@@ -683,9 +731,68 @@ fun AddTaskScreen() {
         Button(modifier = Modifier.constrainAs(addButton) {
             start.linkTo(parent.start)
             bottom.linkTo(parent.bottom, margin = 15.dp)
-        }.fillMaxWidth().padding(horizontal = 20.dp).height(52.dp),
-            onClick = {
+        }.fillMaxWidth().padding(horizontal = 20.dp).height(52.dp).shadow(
+            elevation = 12.dp,
+            shape = RoundedCornerShape(10.dp),
+            ambientColor = Color(0xFF5F33E1).copy(alpha = 0.2f),
+            spotColor = Color(0xFF5F33E1).copy(alpha = 0.4f)
+        ),onClick = {
+                if (taskName.isBlank() || taskGroupName.isBlank() ||
+                    description.isBlank() || startDateText == "Select date" || endDateText == "Select date" ||
+                    startDate == null || endDate == null || dateError) {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = "Please fill all fields",
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                    return@Button
+                }
 
+                val task = Tasks(
+                    id = System.currentTimeMillis().toString(),
+                    time = System.currentTimeMillis(),
+                    taskGroup = selectedGroup,
+                    category = selectedCategory,
+                    taskGroupName = taskGroupName,
+                    taskName = taskName,
+                    description = description,
+                    startDate = startDateText,
+                    endDate = endDateText,
+                    icon = selectedGroupIcon,
+                    iconBg = selectedGroupBG.value.toLong(),
+                    progress = 0.2f,
+                    progressStatus = "In Progress"
+                )
+
+                when(selectedGroup) {
+                    TaskGroup.WORK  ->  TaskPrefs.saveWorkTasks(context,task)
+                    TaskGroup.PERSONAL ->  TaskPrefs.savePersonalTasks(context,task)
+                    TaskGroup.STUDY -> TaskPrefs.saveStudyTasks(context,task)
+                    TaskGroup.DAILY_STUDY ->  TaskPrefs.saveDailyStudyTasks(context,task)
+                }
+
+                clearFields(
+                    setSelectedGroup = { selectedGroup = it },
+                    setSelectedCategory = { selectedCategory = it },
+                    setSelectedGroupBG = { selectedGroupBG = it },
+                    setSelectedGroupIcon = { selectedGroupIcon = it },
+                    setTaskGroupName = { taskGroupName = it },
+                    setTaskName = { taskName = it },
+                    setDescription = { description = it },
+                    setStartDate = { startDate = it },
+                    setEndDate = { endDate = it },
+                    setStartDateText = { startDateText = it },
+                    setEndDateText = { endDateText = it },
+                    setDateError = { dateError = it }
+                )
+
+                scope.launch { 
+                    snackbarHostState.showSnackbar(
+                        message = "Task added successfully",
+                        duration = SnackbarDuration.Short
+                    )
+                }
             }, colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF5F33E1),
                 contentColor = Color(0xFFFFFFFF)
@@ -760,9 +867,10 @@ fun AddTaskScreen() {
                     TextButton(onClick = {
                         val selectedMillis = datePickerState.selectedDateMillis
                         if (selectedMillis != null) {
-                            val selectedDate = LocalDate.ofEpochDay(
-                                selectedMillis / (24 * 60 * 60 * 1000)
-                            )
+                            val selectedDate = Instant
+                                .ofEpochMilli(selectedMillis)
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDate()
 
                             when (activeDateType) {
                                 DateType.START -> {
@@ -818,9 +926,40 @@ fun AddTaskScreen() {
         }
     }
 }
+private fun clearFields(
+    setSelectedGroup: (String) -> Unit,
+    setSelectedCategory: (String) -> Unit,
+    setSelectedGroupBG: (Color) -> Unit,
+    setSelectedGroupIcon: (Int) -> Unit,
+    setTaskGroupName: (String) -> Unit,
+    setTaskName: (String) -> Unit,
+    setDescription: (String) -> Unit,
+    setStartDate: (LocalDate?) -> Unit,
+    setEndDate: (LocalDate?) -> Unit,
+    setStartDateText: (String) -> Unit,
+    setEndDateText: (String) -> Unit,
+    setDateError: (Boolean) -> Unit
+) {
+    setTaskGroupName("Enter Task Group Name")
+    setTaskName("Enter Task Name")
+    setDescription("Enter Task Description")
+
+    setStartDate(null)
+    setEndDate(null)
+    setDateError(false)
+
+    setStartDateText("Select date")
+    setEndDateText("Select date")
+
+    setSelectedGroup("Work")
+    setSelectedCategory("Task")
+    setSelectedGroupBG(Color(0xFFFFE4F2))
+    setSelectedGroupIcon(R.drawable.briefcase)
+}
 
 @Preview(showSystemUi = true)
 @Composable
 private fun ShowAddTask() {
-    AddTaskScreen()
+    val snackbarHostState = SnackbarHostState()
+    AddTaskScreen(snackbarHostState)
 }

@@ -53,7 +53,7 @@ fun SearchScreen() {
     var searchText by remember { mutableStateOf("") }
 
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-        val(text1,search,searchResult) = createRefs()
+        val(text1,text2,icon,search,searchResult) = createRefs()
 
         Text("Search", modifier = Modifier.constrainAs(text1) {
             top.linkTo(parent.top, margin = 20.dp)
@@ -72,6 +72,23 @@ fun SearchScreen() {
             }.fillMaxWidth().padding(horizontal = 20.dp),
             query = searchText,
             onQueryChange = { searchText = it }
+        )
+
+        Icon(painter = painterResource(R.drawable.search_empty), contentDescription = "empty_notification",
+            tint = Color(0xFF5F33E1), modifier = Modifier.constrainAs(icon) {
+                top.linkTo(parent.top)
+                bottom.linkTo(parent.bottom)
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+            }.size(92.dp)
+        )
+
+        Text("No results found", modifier = Modifier.constrainAs(text2) {
+            top.linkTo(icon.bottom)
+            start.linkTo(parent.start)
+            end.linkTo(parent.end)
+        }, fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
+            color = Color(0xFF24252C)
         )
 
         val taskGroupsIcons = listOf(
@@ -122,7 +139,7 @@ fun SearchScreen() {
             height = Dimension.fillToConstraints
         },contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp))
         {
-            items(4) { index ->
+            items(0) { index ->
                 val taskGroupIcon = taskGroupsIcons[index % taskGroupsIcons.size]
                 val taskGroupIconColor = taskGroupsIconsColors[index % taskGroupsIconsColors.size]
                 val taskLevel = taskLevels[index % taskLevels.size]
