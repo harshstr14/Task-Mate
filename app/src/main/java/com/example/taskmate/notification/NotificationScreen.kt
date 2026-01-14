@@ -80,7 +80,7 @@ fun NotificationScreen() {
             start.linkTo(parent.start)
             end.linkTo(parent.end)
         }, fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
-            color = Color(0xFF24252C)
+            color = Color(0xFF6E6A7C)
         )
 
         val taskGroups = listOf(

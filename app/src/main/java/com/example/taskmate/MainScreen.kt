@@ -51,11 +51,12 @@ import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.example.taskmate.addtask.AddTaskScreen
 import com.example.taskmate.calendar.CalendarScreen
-import com.example.taskmate.calendar.fonts
 import com.example.taskmate.home.HomeScreen
+import com.example.taskmate.home.fonts
 import com.example.taskmate.navigation.BottomNavRoute
 import com.example.taskmate.notification.NotificationScreen
 import com.example.taskmate.search.SearchScreen
+import com.example.taskmate.tasksscreen.TasksScreen
 import com.example.taskmate.ui.theme.TaskMateTheme
 import com.example.taskmate.updatetask.UpdateTaskScreen
 
@@ -79,7 +80,8 @@ fun Main_Screen() {
     Scaffold(
         snackbarHost = {
             SnackbarHost(snackbarHostState) { data ->
-                val isError = data.visuals.message.contains("Please")
+                val isError = data.visuals.message.contains("Please") ||
+                        data.visuals.message.contains("No")
 
                 Snackbar(
                     modifier = Modifier.fillMaxWidth()
@@ -161,8 +163,25 @@ fun Main_Screen() {
                 val taskGroup = backStackEntry.arguments?.getString("taskGroup")
 
                 UpdateTaskScreen(
+                    navController,
                     snackbarHostState = snackbarHostState,
                     taskId = taskId,
+                    taskGroup = taskGroup
+                )
+            }
+            composable(
+                route = BottomNavRoute.Tasks.route,
+                arguments = listOf(
+                    navArgument("taskGroup") {
+                        type = NavType.StringType
+                    }
+                )
+            ) { backStackEntry ->
+                val taskGroup = backStackEntry.arguments?.getString("taskGroup")
+
+                TasksScreen(
+                    navController,
+                    snackbarHostState = snackbarHostState,
                     taskGroup = taskGroup
                 )
             }

@@ -71,19 +71,22 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.example.taskmate.R
 import com.example.taskmate.addtask.DateType
 import com.example.taskmate.home.TaskGroup
 import com.example.taskmate.home.TaskPrefs
 import com.example.taskmate.home.Tasks
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.time.Instant
 
 @Composable
-fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, taskGroup: String?) {
+fun UpdateTaskScreen(navController: NavController, snackbarHostState: SnackbarHostState, taskId: String?, taskGroup: String?) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -129,18 +132,12 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
     var endDateText by remember { mutableStateOf(task?.endDate ?: "Select date") }
 
     var expanded by remember { mutableStateOf(false) }
-    var expandedCategory by remember { mutableStateOf(false) }
     var selectedGroup by remember { mutableStateOf(task?.taskGroup ?: "Work") }
-    var selectedCategory by remember { mutableStateOf(task?.category ?: "Task") }
     var selectedGroupBG by remember { mutableStateOf(Color(0xFFFFE4F2)) }
     var selectedGroupIcon by remember { mutableIntStateOf(task?.icon ?: R.drawable.briefcase) }
 
     val rotationArrow by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
-        label = "arrowRotation"
-    )
-    val rotationArrow2 by animateFloatAsState(
-        targetValue = if (expandedCategory) 180f else 0f,
         label = "arrowRotation"
     )
 
@@ -149,7 +146,7 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
     var description by remember { mutableStateOf(task?.description ?: "") }
 
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-        val(column,text1,box1,category,addButton,taskGroup,taskCategory) = createRefs()
+        val(column,text1,box1,addButton,taskGroup,removeButton) = createRefs()
 
         Text("Task", modifier = Modifier.constrainAs(text1) {
             top.linkTo(parent.top, margin = 20.dp)
@@ -158,6 +155,38 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
         }, fontSize = 20.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
             color = Color(0xFF24252C)
         )
+
+        Box(modifier = Modifier.constrainAs(removeButton) {
+            top.linkTo(text1.top)
+            bottom.linkTo(text1.bottom)
+            end.linkTo(parent.end, margin = 20.dp)
+        }.size(28.dp).clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFF5F33E1)).padding(end = 1.dp)
+            .clickable { task?.let { currentTask ->
+                when (currentTask.taskGroup) {
+                    TaskGroup.WORK -> TaskPrefs.removeWorkTask(context, currentTask.id)
+                    TaskGroup.PERSONAL -> TaskPrefs.removePersonalTasks(context, currentTask.id)
+                    TaskGroup.STUDY -> TaskPrefs.removeStudyTasks(context, currentTask.id)
+                    TaskGroup.DAILY_STUDY -> TaskPrefs.removeDailyStudyTasks(context, currentTask.id)
+                }
+
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = "Task Removed",
+                        duration = SnackbarDuration.Short
+                    )
+                    delay(50)
+                    navController.popBackStack()
+                }
+            }}, contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.remove_icon),
+                contentDescription = "add Icon",
+                tint = Color(0xFFEEE9FF),
+                modifier = Modifier.align(Alignment.Center).size(18.dp)
+            )
+        }
 
         Box(modifier = Modifier.constrainAs(box1) {
             top.linkTo(text1.bottom, margin = 25.dp)
@@ -311,112 +340,8 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
             }
         }
 
-        Box(modifier = Modifier.constrainAs(category) {
-            top.linkTo(box1.bottom, margin = 25.dp)
-            start.linkTo(parent.start)
-            end.linkTo(parent.end)
-        }.padding(horizontal = 20.dp).height(63.dp).fillMaxWidth().shadow(
-            elevation = 12.dp,
-            shape = RoundedCornerShape(15.dp),
-            ambientColor = Color(0xFFFFFFFF).copy(alpha = 0.2f),
-            spotColor = Color(0xFFFFFFFF).copy(alpha = 0.4f)
-        ).background(Color(0xFFFFFFFF),
-            shape = RoundedCornerShape(15.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-                val(text1,text2,arrowDown) = createRefs()
-
-                Text("Category", modifier = Modifier.constrainAs(text1) {
-                    top.linkTo(parent.top, margin = 12.dp)
-                    start.linkTo(parent.start, margin = 15.dp)
-                }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                    fontSize = 9.sp, lineHeight = 12.sp, color = Color(0xFF6E6A7C)
-                )
-
-                Text(selectedCategory, modifier = Modifier.constrainAs(text2) {
-                    top.linkTo(text1.bottom, margin = 7.dp)
-                    start.linkTo(parent.start, margin = 15.dp)
-                }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                    fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF24252C)
-                )
-
-                Box(modifier = Modifier.constrainAs(arrowDown) {
-                    top.linkTo(parent.top)
-                    bottom.linkTo(parent.bottom)
-                    end.linkTo(parent.end, margin = 15.dp)
-                }.size(32.dp).clip(RoundedCornerShape(10.dp)).clickable {
-                    expandedCategory = !expandedCategory
-                }, contentAlignment = Alignment.Center) {
-                    Icon(modifier = Modifier.size(12.dp).rotate(rotationArrow2), painter = painterResource(R.drawable.arrow),
-                        contentDescription = "arrowLeft", tint = Color(0xFF24252C))
-                }
-            }
-        }
-
-        val taskCategories = listOf(
-            "Task","To Do"
-        )
-
-        AnimatedVisibility( modifier = Modifier.constrainAs(taskCategory) {
-            top.linkTo(category.bottom)
-            start.linkTo(category.start)
-            end.linkTo(category.end)
-        }.zIndex(10f),
-            visible = expandedCategory,
-            enter = fadeIn() + slideInVertically { -it / 4 },
-            exit = fadeOut() + slideOutVertically { -it / 4 }
-        ) {
-            Box(
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-                    .fillMaxWidth().shadow(
-                        elevation = 12.dp,
-                        shape = RoundedCornerShape(15.dp),
-                        ambientColor = Color(0xFFFFFFFF).copy(alpha = 0.2f),
-                        spotColor = Color(0xFFFFFFFF).copy(alpha = 0.4f)
-                    ).background(Color(0xFFEEE9FF),
-                        shape = RoundedCornerShape(15.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                LazyColumn(contentPadding = PaddingValues(vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp))
-                {
-                    items(2) { index ->
-                        val taskCategory = taskCategories[index % taskCategories.size]
-                        val isSelected = taskCategory == selectedCategory
-
-                        ElevatedCard(
-                            elevation = CardDefaults.cardElevation(
-                                defaultElevation = 0.dp
-                            ),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isSelected) Color(0xFF5F33E1) else Color(0xFFFFFFFF)
-                            ),
-                            modifier = Modifier.padding(horizontal = 12.dp)
-                                .fillMaxWidth().clickable {
-                                    selectedCategory = taskCategory
-                                    expandedCategory = false }, shape = RoundedCornerShape(15.dp)
-                        ) {
-                            ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-
-                                val (text1) = createRefs()
-
-                                Text(taskCategory, modifier = Modifier.constrainAs(text1) {
-                                    top.linkTo(parent.top, margin = 10.dp)
-                                    bottom.linkTo(parent.bottom, margin = 10.dp)
-                                    start.linkTo(parent.start, margin = 15.dp)
-                                }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                                    fontSize = 14.sp, color = if (isSelected) Color(0xFFFFFFFF) else Color(0xFF24252C)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         Column(modifier = Modifier.constrainAs(column) {
-            top.linkTo(category.bottom, margin = (-15).dp)
+            top.linkTo(box1.bottom, margin = (-15).dp)
             bottom.linkTo(addButton.top, margin = (-15).dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
@@ -770,7 +695,6 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
                     id = task?.id ?: return@Button,
                     time = System.currentTimeMillis(),
                     taskGroup = selectedGroup,
-                    category = selectedCategory,
                     taskGroupName = taskGroupName,
                     taskName = taskName,
                     description = description,
@@ -964,6 +888,7 @@ private fun removeTaskFromOldGroup(context: Context, oldGroup: String, taskId: S
 @Preview(showSystemUi = true)
 @Composable
 private fun ShowAddTask() {
+    val navController = rememberNavController()
     val snackbarHostState = SnackbarHostState()
-    UpdateTaskScreen(snackbarHostState,  "10002", TaskGroup.WORK)
+    UpdateTaskScreen(navController,snackbarHostState, "10002",TaskGroup.WORK)
 }

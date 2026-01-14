@@ -4,7 +4,6 @@ data class Tasks(
     val id: String,
     val time: Long,
     val taskGroup: String,
-    val category: String,
     val taskGroupName: String,
     val taskName: String,
     val description: String,

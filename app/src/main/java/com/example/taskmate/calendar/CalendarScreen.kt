@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -47,8 +48,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -60,21 +59,40 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import androidx.window.layout.WindowMetricsCalculator
 import com.example.taskmate.R
+import com.example.taskmate.home.TaskPrefs
+import com.example.taskmate.home.fonts
 import com.example.taskmate.navigation.BottomNavRoute
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
-val fonts = FontFamily(
-    Font(R.font.merriweathersans_bold, FontWeight.Bold),
-    Font(R.font.merriweathersans_semibold, FontWeight.SemiBold),
-    Font(R.font.merriweathersans_regular, FontWeight.Normal)
-)
 @Composable
 fun CalendarScreen(navController: NavController) {
+    val context = LocalContext.current
+    val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
+    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+
+    val allTasks = remember {
+        listOf(
+            TaskPrefs.loadWorkTasks(context),
+            TaskPrefs.loadPersonalTasks(context),
+            TaskPrefs.loadStudyTasks(context),
+            TaskPrefs.loadDailyStudyTasks(context)
+        ).flatten()
+    }
+
+    val filteredTasks = remember(allTasks, selectedDate) {
+        allTasks.filter { task ->
+            val startDate = LocalDate.parse(task.startDate, formatter)
+            val endDate = LocalDate.parse(task.endDate, formatter)
+            selectedDate in startDate..endDate
+        }
+    }
 
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -82,8 +100,6 @@ fun CalendarScreen(navController: NavController) {
     var currentMonth by remember {
         mutableStateOf(YearMonth.now())
     }
-
-    val today = LocalDate.now()
 
     val dates = remember(currentMonth) {
         (1..currentMonth.lengthOfMonth()).map { day ->
@@ -93,11 +109,10 @@ fun CalendarScreen(navController: NavController) {
 
     var selectedIndex by remember {
         mutableIntStateOf(
-            dates.indexOfFirst { it == today }.coerceAtLeast(0)
+            dates.indexOfFirst { it == selectedDate }.coerceAtLeast(0)
         )
     }
 
-    val context = LocalContext.current
     val density = LocalDensity.current
 
     val windowMetrics = remember {
@@ -124,24 +139,23 @@ fun CalendarScreen(navController: NavController) {
     )
 
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-        val(text1,arrowLeft,arrowRight,addButton,dateButton,datesRow,categories,taskListsColumn) = createRefs()
+        val(text1,text4,icon,arrowLeft,arrowRight,addButton,dateButton,datesRow,categories,taskListsColumn) = createRefs()
 
         Text(currentMonth.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH) + ", ${currentMonth.year}", modifier = Modifier.constrainAs(text1) {
             top.linkTo(parent.top, margin = 20.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
         }.clickable {
-            val now = YearMonth.now()
-            currentMonth = now
+            val today = LocalDate.now()
+            val nowMonth = YearMonth.from(today)
 
-            val todayIndex = dates.indexOfFirst { it == LocalDate.now() }
-                .coerceAtLeast(0)
-
-            selectedIndex = todayIndex
+            currentMonth = nowMonth
+            selectedDate = today
+            selectedIndex = today.dayOfMonth - 1
 
             coroutineScope.launch {
                 listState.animateScrollToItem(
-                    index = todayIndex,
+                    index = selectedIndex,
                     scrollOffset = -centerOffset.toInt()
                 )
             }
@@ -239,7 +253,8 @@ fun CalendarScreen(navController: NavController) {
                     shape = RoundedCornerShape(15.dp),
                     ambientColor = Color(0xFF5F33E1).copy(alpha = 0.2f),
                     spotColor = Color(0xFF5F33E1).copy(alpha = 0.4f)
-                ).clickable{selectedIndex = index
+                ).clickable{selectedDate = date
+                    selectedIndex = index
                     coroutineScope.launch {
                         listState.animateScrollToItem(
                             index = index,
@@ -347,45 +362,33 @@ fun CalendarScreen(navController: NavController) {
             }
         }
 
-        val taskGroupsIcons = listOf(
-            R.drawable.briefcase,
-            R.drawable.briefcase,
-            R.drawable.personal,
-            R.drawable.study
-        )
-        val taskGroupsIconsColors = listOf(
-            Color(0xFFFFE4F2),
-            Color(0xFFFFE4F2),
-            Color(0xFFEDE4FF),
-            Color(0xFFFFF6D4)
-        )
-        val taskLevels = listOf(
-            "Done","In Progress","To Do","To Do"
-        )
-        val taskLevelsBG = listOf(
-            Color(0xFFEDE8FF),
-            Color(0xFFFFE9E1),
-            Color(0xFFE3F2FF),
-            Color(0xFFE3F2FF)
-        )
-        val taskLevelsColors = listOf(
-            Color(0xFF5F33E1),
-            Color(0xFFFF7D53),
-            Color(0xFF0087FF),
-            Color(0xFF0087FF)
-        )
-        val taskLists = listOf(
-            "Grocery shopping app design",
-            "Grocery shopping app design",
-            "Uber Eats redesign challange",
-            "About design sprint"
-        )
-        val taskListTopics = listOf(
-            "Market Research",
-            "Competitive Analysis",
-            "Create Low-fidelity Wireframe",
-            "How to pitch a Design Sprint"
-        )
+        val categoryFilteredTasks = remember(filteredTasks, selectedCategoryIndex) {
+            when (categoriesList[selectedCategoryIndex]) {
+                "To Do" -> filteredTasks.filter { it.progressStatus == "To Do" }
+                "In Progress" -> filteredTasks.filter { it.progressStatus == "In Progress" }
+                "Complete" -> filteredTasks.filter { it.progressStatus == "Done" }
+                else -> filteredTasks
+            }
+        }
+
+        if (categoryFilteredTasks.isEmpty()) {
+            Icon(painter = painterResource(R.drawable.empty_task), contentDescription = "empty_notification",
+                tint = Color(0xFF5F33E1), modifier = Modifier.constrainAs(icon) {
+                    top.linkTo(categories.bottom)
+                    bottom.linkTo(parent.bottom)
+                    start.linkTo(parent.start, margin = (-3).dp)
+                    end.linkTo(parent.end)
+                }.size(92.dp)
+            )
+
+            Text("Empty Tasks ", modifier = Modifier.constrainAs(text4) {
+                top.linkTo(icon.bottom, margin = (-8).dp)
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+            }, fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
+                color = Color(0xFF6E6A7C)
+            )
+        }
 
         LazyColumn(modifier = Modifier.constrainAs(taskListsColumn) {
             top.linkTo(categories.bottom, margin = 25.dp)
@@ -395,14 +398,7 @@ fun CalendarScreen(navController: NavController) {
             height = Dimension.fillToConstraints
         },contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp))
         {
-            items(4) { index ->
-                val taskGroupIcon = taskGroupsIcons[index % taskGroupsIcons.size]
-                val taskGroupIconColor = taskGroupsIconsColors[index % taskGroupsIconsColors.size]
-                val taskLevel = taskLevels[index % taskLevels.size]
-                val taskLevelColor = taskLevelsColors[index % taskLevelsColors.size]
-                val taskLevelBG = taskLevelsBG[index % taskLevelsBG.size]
-                val taskList = taskLists[index % taskLists.size]
-                val taskListTopic = taskListTopics[index % taskListTopics.size]
+            items(categoryFilteredTasks) { task ->
 
                 ElevatedCard(elevation = CardDefaults.cardElevation(
                     defaultElevation = 0.dp
@@ -413,11 +409,12 @@ fun CalendarScreen(navController: NavController) {
                     shape = RoundedCornerShape(15.dp),
                     ambientColor = Color(0xFFFFFFFF).copy(alpha = 0.2f),
                     spotColor = Color(0xFFFFFFFF).copy(alpha = 0.4f)
-                ),shape = RoundedCornerShape(15.dp)) {
+                ), onClick = { navController.navigate("update_task/${task.id}/${task.taskGroup}") }
+                    ,shape = RoundedCornerShape(15.dp)) {
                     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
                         val(text1,text2,clock,timeText,boxShape,boxShape2) = createRefs()
 
-                        Text(taskList, modifier = Modifier.constrainAs(text1) {
+                        Text(task.taskGroupName, modifier = Modifier.constrainAs(text1) {
                             top.linkTo(parent.top, margin = 5.dp)
                             bottom.linkTo(text2.top)
                             start.linkTo(parent.start)
@@ -425,7 +422,7 @@ fun CalendarScreen(navController: NavController) {
                             fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 1
                         )
 
-                        Text(taskListTopic, modifier = Modifier.constrainAs(text2) {
+                        Text(task.taskName, modifier = Modifier.constrainAs(text2) {
                             top.linkTo(parent.top)
                             bottom.linkTo(parent.bottom)
                             start.linkTo(parent.start)
@@ -438,7 +435,7 @@ fun CalendarScreen(navController: NavController) {
                             start.linkTo(parent.start, margin = 15.dp)
                         }.size(14.dp), painter = painterResource(R.drawable.clock), contentDescription = "clock Icon")
 
-                        Text("12:00", modifier = Modifier.constrainAs(timeText) {
+                        Text(formatTime(task.time), modifier = Modifier.constrainAs(timeText) {
                             top.linkTo(clock.top)
                             start.linkTo(clock.end, margin = 2.dp)
                             bottom.linkTo(clock.bottom)
@@ -449,36 +446,56 @@ fun CalendarScreen(navController: NavController) {
                         Box(modifier = Modifier.constrainAs(boxShape) {
                             top.linkTo(parent.top, margin = 15.dp)
                             end.linkTo(parent.end, margin = 15.dp)
-                        }.size(34.dp).background(taskGroupIconColor,
+                        }.size(34.dp).background(Color(task.iconBg.toULong()),
                             shape = RoundedCornerShape(7.dp)),
                             contentAlignment = Alignment.Center
                         )  {
-                            Image(modifier = Modifier.size(20.dp), painter = painterResource(taskGroupIcon), contentDescription = "briefcase")
+                            Image(modifier = Modifier.size(20.dp), painter = painterResource(task.icon), contentDescription = "briefcase")
                         }
 
                         ElevatedCard(elevation = CardDefaults.cardElevation(
                             defaultElevation = 0.dp
                         ), colors = CardDefaults.cardColors(
-                            containerColor = taskLevelBG
+                            containerColor = when(task.progressStatus) {
+                                "Done" -> Color(0xFFEDE8FF)
+                                "In Progress" -> Color(0xFFFFE9E1)
+                                "To Do" -> Color(0xFFE3F2FF)
+                                else -> Color(0xFFEDE8FF)
+                            }
                         ), modifier = Modifier.constrainAs(boxShape2) {
                             bottom.linkTo(parent.bottom, margin = 15.dp)
                             end.linkTo(parent.end, margin = 15.dp)
                         }.shadow( elevation = 12.dp,
                             shape = RoundedCornerShape(7.dp),
-                            ambientColor = taskLevelBG.copy(alpha = 0.2f),
-                            spotColor = taskLevelBG.copy(alpha = 0.4f)
+                            ambientColor = when(task.progressStatus) {
+                                "Done" -> Color(0xFFEDE8FF)
+                                "In Progress" -> Color(0xFFFFE9E1)
+                                "To Do" -> Color(0xFFE3F2FF)
+                                else -> Color(0xFFEDE8FF)
+                            }.copy(alpha = 0.2f),
+                            spotColor = when(task.progressStatus) {
+                                "Done" -> Color(0xFFEDE8FF)
+                                "In Progress" -> Color(0xFFFFE9E1)
+                                "To Do" -> Color(0xFFE3F2FF)
+                                else -> Color(0xFFEDE8FF)
+                            }.copy(alpha = 0.4f)
                         ),shape = RoundedCornerShape(7.dp)) {
                             Box(modifier = Modifier
-                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = taskLevel,
+                                    text = task.progressStatus,
                                     fontFamily = fonts,
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 9.sp,
                                     lineHeight = 12.sp,
-                                    color = taskLevelColor
+                                    color = when(task.progressStatus) {
+                                        "Done" -> Color(0xFF5F33E1)
+                                        "In Progress" -> Color(0xFFFF7D53)
+                                        "To Do" -> Color(0xFF0087FF)
+                                        else -> Color(0xFF5F33E1)
+                                    }
                                 )
                             }
                         }
@@ -595,7 +612,7 @@ fun CalendarScreen(navController: NavController) {
     }
 
     LaunchedEffect(dates) {
-        val todayIndex = dates.indexOfFirst { it == today }
+        val todayIndex = dates.indexOfFirst { it == selectedDate }
         if (todayIndex != -1) {
             listState.animateScrollToItem(
                 index = todayIndex,
@@ -604,6 +621,12 @@ fun CalendarScreen(navController: NavController) {
             selectedIndex = todayIndex
         }
     }
+}
+private fun formatTime(time: Long): String {
+    return Instant.ofEpochMilli(time)
+        .atZone(ZoneId.systemDefault())
+        .toLocalTime()
+        .format(DateTimeFormatter.ofPattern("hh:mm a"))
 }
 
 @Preview(showSystemUi = true)

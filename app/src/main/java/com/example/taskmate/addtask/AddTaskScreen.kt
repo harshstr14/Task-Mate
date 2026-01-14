@@ -108,18 +108,12 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
     var endDateText by remember { mutableStateOf("Select date") }
 
     var expanded by remember { mutableStateOf(false) }
-    var expandedCategory by remember { mutableStateOf(false) }
     var selectedGroup by remember { mutableStateOf("Work") }
-    var selectedCategory by remember { mutableStateOf("Task") }
     var selectedGroupBG by remember { mutableStateOf(Color(0xFFFFE4F2)) }
     var selectedGroupIcon by remember { mutableIntStateOf(R.drawable.briefcase) }
 
     val rotationArrow by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
-        label = "arrowRotation"
-    )
-    val rotationArrow2 by animateFloatAsState(
-        targetValue = if (expandedCategory) 180f else 0f,
         label = "arrowRotation"
     )
 
@@ -128,7 +122,7 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
     var description by remember { mutableStateOf("") }
 
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-        val(column,text1,box1,category,addButton,taskGroup,taskCategory) = createRefs()
+        val(column,text1,box1,addButton,taskGroup) = createRefs()
 
         Text("Add Task", modifier = Modifier.constrainAs(text1) {
             top.linkTo(parent.top, margin = 20.dp)
@@ -290,112 +284,8 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
             }
         }
 
-        Box(modifier = Modifier.constrainAs(category) {
-            top.linkTo(box1.bottom, margin = 25.dp)
-            start.linkTo(parent.start)
-            end.linkTo(parent.end)
-        }.padding(horizontal = 20.dp).height(63.dp).fillMaxWidth().shadow(
-            elevation = 12.dp,
-            shape = RoundedCornerShape(15.dp),
-            ambientColor = Color(0xFFFFFFFF).copy(alpha = 0.2f),
-            spotColor = Color(0xFFFFFFFF).copy(alpha = 0.4f)
-        ).background(Color(0xFFFFFFFF),
-            shape = RoundedCornerShape(15.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-                val(text1,text2,arrowDown) = createRefs()
-
-                Text("Category", modifier = Modifier.constrainAs(text1) {
-                    top.linkTo(parent.top, margin = 12.dp)
-                    start.linkTo(parent.start, margin = 15.dp)
-                }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                    fontSize = 9.sp, lineHeight = 12.sp, color = Color(0xFF6E6A7C)
-                )
-
-                Text(selectedCategory, modifier = Modifier.constrainAs(text2) {
-                    top.linkTo(text1.bottom, margin = 7.dp)
-                    start.linkTo(parent.start, margin = 15.dp)
-                }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                    fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF24252C)
-                )
-
-                Box(modifier = Modifier.constrainAs(arrowDown) {
-                    top.linkTo(parent.top)
-                    bottom.linkTo(parent.bottom)
-                    end.linkTo(parent.end, margin = 15.dp)
-                }.size(32.dp).clip(RoundedCornerShape(10.dp)).clickable {
-                    expandedCategory = !expandedCategory
-                }, contentAlignment = Alignment.Center) {
-                    Icon(modifier = Modifier.size(12.dp).rotate(rotationArrow2), painter = painterResource(R.drawable.arrow),
-                        contentDescription = "arrowLeft", tint = Color(0xFF24252C))
-                }
-            }
-        }
-
-        val taskCategories = listOf(
-            "Task","To Do"
-        )
-
-        AnimatedVisibility( modifier = Modifier.constrainAs(taskCategory) {
-            top.linkTo(category.bottom)
-            start.linkTo(category.start)
-            end.linkTo(category.end)
-        }.zIndex(10f),
-            visible = expandedCategory,
-            enter = fadeIn() + slideInVertically { -it / 4 },
-            exit = fadeOut() + slideOutVertically { -it / 4 }
-        ) {
-            Box(
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-                    .fillMaxWidth().shadow(
-                        elevation = 12.dp,
-                        shape = RoundedCornerShape(15.dp),
-                        ambientColor = Color(0xFFFFFFFF).copy(alpha = 0.2f),
-                        spotColor = Color(0xFFFFFFFF).copy(alpha = 0.4f)
-                    ).background(Color(0xFFEEE9FF),
-                        shape = RoundedCornerShape(15.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                LazyColumn(contentPadding = PaddingValues(vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp))
-                {
-                    items(2) { index ->
-                        val taskCategory = taskCategories[index % taskCategories.size]
-                        val isSelected = taskCategory == selectedCategory
-
-                        ElevatedCard(
-                            elevation = CardDefaults.cardElevation(
-                                defaultElevation = 0.dp
-                            ),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isSelected) Color(0xFF5F33E1) else Color(0xFFFFFFFF)
-                            ),
-                            modifier = Modifier.padding(horizontal = 12.dp)
-                                .fillMaxWidth().clickable {
-                                    selectedCategory = taskCategory
-                                    expandedCategory = false }, shape = RoundedCornerShape(15.dp)
-                        ) {
-                            ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-
-                                val (text1) = createRefs()
-
-                                Text(taskCategory, modifier = Modifier.constrainAs(text1) {
-                                    top.linkTo(parent.top, margin = 10.dp)
-                                    bottom.linkTo(parent.bottom, margin = 10.dp)
-                                    start.linkTo(parent.start, margin = 15.dp)
-                                }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                                    fontSize = 14.sp, color = if (isSelected) Color(0xFFFFFFFF) else Color(0xFF24252C)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         Column(modifier = Modifier.constrainAs(column) {
-            top.linkTo(category.bottom, margin = (-15).dp)
+            top.linkTo(box1.bottom, margin = (-15).dp)
             bottom.linkTo(addButton.top, margin = (-15).dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
@@ -753,7 +643,6 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
                     id = System.currentTimeMillis().toString(),
                     time = System.currentTimeMillis(),
                     taskGroup = selectedGroup,
-                    category = selectedCategory,
                     taskGroupName = taskGroupName,
                     taskName = taskName,
                     description = description,
@@ -762,7 +651,7 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
                     icon = selectedGroupIcon,
                     iconBg = selectedGroupBG.value.toLong(),
                     progress = 0.2f,
-                    progressStatus = "In Progress"
+                    progressStatus = "To Do"
                 )
 
                 when(selectedGroup) {
@@ -774,7 +663,6 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
 
                 clearFields(
                     setSelectedGroup = { selectedGroup = it },
-                    setSelectedCategory = { selectedCategory = it },
                     setSelectedGroupBG = { selectedGroupBG = it },
                     setSelectedGroupIcon = { selectedGroupIcon = it },
                     setTaskGroupName = { taskGroupName = it },
@@ -928,7 +816,6 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
 }
 private fun clearFields(
     setSelectedGroup: (String) -> Unit,
-    setSelectedCategory: (String) -> Unit,
     setSelectedGroupBG: (Color) -> Unit,
     setSelectedGroupIcon: (Int) -> Unit,
     setTaskGroupName: (String) -> Unit,
@@ -940,9 +827,9 @@ private fun clearFields(
     setEndDateText: (String) -> Unit,
     setDateError: (Boolean) -> Unit
 ) {
-    setTaskGroupName("Enter Task Group Name")
-    setTaskName("Enter Task Name")
-    setDescription("Enter Task Description")
+    setTaskGroupName("")
+    setTaskName("")
+    setDescription("")
 
     setStartDate(null)
     setEndDate(null)
@@ -952,7 +839,6 @@ private fun clearFields(
     setEndDateText("Select date")
 
     setSelectedGroup("Work")
-    setSelectedCategory("Task")
     setSelectedGroupBG(Color(0xFFFFE4F2))
     setSelectedGroupIcon(R.drawable.briefcase)
 }

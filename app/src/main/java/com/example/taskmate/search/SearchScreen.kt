@@ -30,7 +30,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -40,15 +39,11 @@ import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import com.example.taskmate.R
+import com.example.taskmate.home.fonts
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen() {
-    val fonts = FontFamily(
-        Font(R.font.merriweathersans_bold, FontWeight.Bold),
-        Font(R.font.merriweathersans_semibold, FontWeight.SemiBold),
-        Font(R.font.merriweathersans_regular, FontWeight.Normal)
-    )
 
     var searchText by remember { mutableStateOf("") }
 
@@ -88,7 +83,7 @@ fun SearchScreen() {
             start.linkTo(parent.start)
             end.linkTo(parent.end)
         }, fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
-            color = Color(0xFF24252C)
+            color = Color(0xFF6E6A7C)
         )
 
         val taskGroupsIcons = listOf(
@@ -165,7 +160,7 @@ fun SearchScreen() {
                             top.linkTo(parent.top, margin = 5.dp)
                             bottom.linkTo(text2.top)
                             start.linkTo(parent.start)
-                        }.fillMaxWidth().padding(start = 14.dp, end = 65.dp), fontFamily = com.example.taskmate.calendar.fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
+                        }.fillMaxWidth().padding(start = 14.dp, end = 65.dp), fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 1
                         )
 
@@ -173,7 +168,7 @@ fun SearchScreen() {
                             top.linkTo(parent.top)
                             bottom.linkTo(parent.bottom)
                             start.linkTo(parent.start)
-                        }.fillMaxWidth().padding(start = 14.dp, end = 65.dp), fontFamily = com.example.taskmate.calendar.fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
+                        }.fillMaxWidth().padding(start = 14.dp, end = 65.dp), fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF24252C), maxLines = 1
                         )
 
@@ -186,7 +181,7 @@ fun SearchScreen() {
                             top.linkTo(clock.top)
                             start.linkTo(clock.end, margin = 2.dp)
                             bottom.linkTo(clock.bottom)
-                        }, fontFamily = com.example.taskmate.calendar.fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
+                        }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFFAB94FF), maxLines = 1
                         )
 
@@ -218,7 +213,7 @@ fun SearchScreen() {
                             ) {
                                 Text(
                                     text = taskLevel,
-                                    fontFamily = com.example.taskmate.calendar.fonts,
+                                    fontFamily = fonts,
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 9.sp,
                                     lineHeight = 12.sp,

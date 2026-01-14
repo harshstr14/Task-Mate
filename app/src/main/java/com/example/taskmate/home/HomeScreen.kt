@@ -58,6 +58,7 @@ import androidx.core.content.edit
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.taskmate.R
+import com.example.taskmate.navigation.BottomNavRoute
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.time.LocalDate
@@ -144,6 +145,13 @@ object TaskPrefs {
         val type = object : TypeToken<List<Tasks>>() {}.type
         return Gson().fromJson(json, type)
     }
+    fun clearWorkTasks(context: Context) {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+
+        editor.remove(KEY_WORK_TASKS)
+        editor.apply()
+    }
 
     fun savePersonalTasks(context: Context, task: Tasks) {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -192,6 +200,13 @@ object TaskPrefs {
 
         val type = object : TypeToken<List<Tasks>>() {}.type
         return Gson().fromJson(json, type)
+    }
+    fun clearPersonalTasks(context: Context) {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+
+        editor.remove(KEY_PERSONAL_TASKS)
+        editor.apply()
     }
 
     fun saveStudyTasks(context: Context, task: Tasks) {
@@ -242,6 +257,13 @@ object TaskPrefs {
         val type = object : TypeToken<List<Tasks>>() {}.type
         return Gson().fromJson(json, type)
     }
+    fun clearStudyTasks(context: Context) {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+
+        editor.remove(KEY_STUDY_TASKS)
+        editor.apply()
+    }
 
     fun saveDailyStudyTasks(context: Context, task: Tasks) {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -291,6 +313,13 @@ object TaskPrefs {
         val type = object : TypeToken<List<Tasks>>() {}.type
         return Gson().fromJson(json, type)
     }
+    fun clearDailyStudyTasks(context: Context) {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+
+        editor.remove(KEY_DAILY_STUDY_TASKS)
+        editor.apply()
+    }
 }
 @Composable
 fun HomeScreen(navController: NavController) {
@@ -313,11 +342,13 @@ fun HomeScreen(navController: NavController) {
             }
         )
 
-        TodayTaskProgress(modifier = Modifier.constrainAs(card) {
-            top.linkTo(profileImage.bottom, margin = 22.dp)
-            start.linkTo(parent.start)
-            end.linkTo(parent.end)
-        }.padding(horizontal = 25.dp).fillMaxWidth().height(156.dp))
+        TodayTaskProgress(
+            modifier = Modifier.constrainAs(card) {
+                top.linkTo(profileImage.bottom, margin = 22.dp)
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+            }.padding(horizontal = 25.dp).fillMaxWidth().height(156.dp), navController
+        )
 
         Text("In Progress", modifier = Modifier.constrainAs(text2) {
             top.linkTo(card.bottom, margin = 22.dp)
@@ -390,7 +421,7 @@ fun HomeScreen(navController: NavController) {
             end.linkTo(parent.end)
             bottom.linkTo(parent.bottom, margin = (-15).dp)
             height = Dimension.fillToConstraints
-        })
+        }, navController)
     }
 }
 
@@ -411,7 +442,7 @@ private fun ProfileView(modifier: Modifier,modifier2: Modifier,modifier3: Modifi
 }
 
 @Composable
-private fun TodayTaskProgress(modifier: Modifier) {
+private fun TodayTaskProgress(modifier: Modifier, navController: NavController) {
     val context = LocalContext.current
     val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
     val today = LocalDate.now()
@@ -459,9 +490,8 @@ private fun TodayTaskProgress(modifier: Modifier) {
                 start.linkTo(parent.start, margin = 25.dp)
                 bottom.linkTo(parent.bottom, margin = 22.dp)
             }.size(120.dp,42.dp),
-                onClick = {
-
-                }, colors = ButtonDefaults.buttonColors(
+                onClick = { navController.navigate(BottomNavRoute.Calendar.route)}
+                , colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFFEEE9FF),
                     contentColor = Color(0xFF5F33E1)
                 ) , shape = RoundedCornerShape(10.dp)) {
@@ -475,7 +505,7 @@ private fun TodayTaskProgress(modifier: Modifier) {
                 modifier = Modifier.constrainAs(progress) {
                     top.linkTo(parent.top)
                     bottom.linkTo(parent.bottom)
-                    end.linkTo(parent.end, margin = 45.dp)
+                    end.linkTo(parent.end, margin = 40.dp)
                 }.size(80.dp)
             ) {
                 val animatedProgress by animateFloatAsState(
@@ -662,7 +692,7 @@ private fun InProgressTasks(
                         R.drawable.daily_study -> Color(0xFFFFEBEE)
                         else -> Color(0xFFE7F3FF)
                     }.copy(alpha = 0.4f)
-                ), onClick = { navController.navigate("update_task/${task.id}/${task.taskGroup}")}
+                ), onClick = { navController.navigate("update_task/${task.id}/${task.taskGroup}") }
                     ,shape = RoundedCornerShape(19.dp))
                 {
                     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
@@ -693,7 +723,8 @@ private fun InProgressTasks(
 
                         Box(
                             modifier = Modifier.constrainAs(progressBar) {
-                                top.linkTo(text2.bottom, margin = 12.dp)
+                                top.linkTo(text2.bottom)
+                                bottom.linkTo(parent.bottom)
                                 start.linkTo(parent.start)
                                 end.linkTo(parent.end)
                             }.padding(horizontal = 17.dp).height(7.dp)
@@ -723,7 +754,7 @@ private fun InProgressTasks(
                             shape = RoundedCornerShape(7.dp)),
                             contentAlignment = Alignment.Center
                         )  {
-                            Image(painter = painterResource(task.icon), contentDescription = "briefcase")
+                            Image(painter = painterResource(task.icon), contentDescription = "Icon")
                         }
                     }
                 }
@@ -731,13 +762,11 @@ private fun InProgressTasks(
         }
     }
 }
-
 private fun filterTasksAboveTenPercent(tasks: List<Tasks>): List<Tasks> {
     return tasks.filter { it.progress > 0.1f && it.progress < 1f}
 }
-
 @Composable
-private fun TaskGroups(modifier: Modifier) {
+private fun TaskGroups(modifier: Modifier, navController: NavController) {
     val progressList = remember { mutableStateListOf(0f, 0f, 0f, 0f) }
 
     val workTasksList = TaskPrefs.loadWorkTasks(LocalContext.current)
@@ -746,10 +775,10 @@ private fun TaskGroups(modifier: Modifier) {
     val dailyStudyTasksList = TaskPrefs.loadDailyStudyTasks(LocalContext.current)
 
     val taskGroups = listOf(
-        "Work",
-        "Personal",
-        "Study",
-        "Daily Study"
+        TaskGroup.WORK,
+        TaskGroup.PERSONAL,
+        TaskGroup.STUDY,
+        TaskGroup.DAILY_STUDY
     )
     val totalTasks = listOf(
         workTasksList.size,
@@ -783,7 +812,8 @@ private fun TaskGroups(modifier: Modifier) {
                 shape = RoundedCornerShape(15.dp),
                 ambientColor = Color(0xFFFFFFFF).copy(alpha = 0.2f),
                 spotColor = Color(0xFFFFFFFF).copy(alpha = 0.4f)
-            ),shape = RoundedCornerShape(15.dp)) {
+            ), onClick = { navController.navigate("tasks_screen/${taskGroup}")},
+                shape = RoundedCornerShape(15.dp)) {
                 ConstraintLayout(modifier = Modifier.fillMaxSize()) {
 
                     val (boxShape,text1,text2,progress) = createRefs()
