@@ -51,7 +51,7 @@ fun SearchScreen() {
         val(text1,text2,icon,search,searchResult) = createRefs()
 
         Text("Search", modifier = Modifier.constrainAs(text1) {
-            top.linkTo(parent.top, margin = 20.dp)
+            top.linkTo(parent.top, margin = 15.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
         }, fontSize = 20.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
@@ -60,7 +60,7 @@ fun SearchScreen() {
 
         SearchBar(fonts,
             modifier = Modifier.constrainAs(search) {
-                top.linkTo(text1.bottom, margin = 25.dp)
+                top.linkTo(text1.bottom, margin = 20.dp)
                 start.linkTo(parent.start)
                 end.linkTo(parent.end)
 

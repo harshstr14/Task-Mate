@@ -2,6 +2,7 @@ package com.example.taskmate.notification
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -45,7 +47,7 @@ fun NotificationScreen() {
         val(text1,text2,text3,icon,text4,lazyColumn) = createRefs()
 
         Text("Notification", modifier = Modifier.constrainAs(text1) {
-            top.linkTo(parent.top, margin = 20.dp)
+            top.linkTo(parent.top, margin = 15.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
         }, fontSize = 20.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
@@ -59,12 +61,15 @@ fun NotificationScreen() {
             color = Color(0xFF24252C)
         )
 
-        Text("Clear All", modifier = Modifier.constrainAs(text3) {
+        Box(modifier = Modifier.constrainAs(text3) {
             top.linkTo(text1.bottom, margin = 15.dp)
             end.linkTo(parent.end, margin = 20.dp)
-        }, fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
-            color = Color(0xFF5F33E1)
-        )
+        }.size(72.dp,20.dp).clip(RoundedCornerShape(6.dp))
+            .clickable { }, contentAlignment = Alignment.Center) {
+            Text("Clear All", fontSize = 14.sp, lineHeight = 17.sp, fontFamily = com.example.taskmate.home.fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
+                color = Color(0xFF5F33E1)
+            )
+        }
 
         Icon(painter = painterResource(R.drawable.empty_notification), contentDescription = "empty_notification",
             tint = Color(0xFF5F33E1), modifier = Modifier.constrainAs(icon) {

@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -147,10 +148,9 @@ object TaskPrefs {
     }
     fun clearWorkTasks(context: Context) {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val editor = prefs.edit()
-
-        editor.remove(KEY_WORK_TASKS)
-        editor.apply()
+        prefs.edit {
+            remove(KEY_WORK_TASKS)
+        }
     }
 
     fun savePersonalTasks(context: Context, task: Tasks) {
@@ -203,10 +203,9 @@ object TaskPrefs {
     }
     fun clearPersonalTasks(context: Context) {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val editor = prefs.edit()
-
-        editor.remove(KEY_PERSONAL_TASKS)
-        editor.apply()
+        prefs.edit {
+            remove(KEY_PERSONAL_TASKS)
+        }
     }
 
     fun saveStudyTasks(context: Context, task: Tasks) {
@@ -259,10 +258,9 @@ object TaskPrefs {
     }
     fun clearStudyTasks(context: Context) {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val editor = prefs.edit()
-
-        editor.remove(KEY_STUDY_TASKS)
-        editor.apply()
+        prefs.edit {
+            remove(KEY_STUDY_TASKS)
+        }
     }
 
     fun saveDailyStudyTasks(context: Context, task: Tasks) {
@@ -315,10 +313,9 @@ object TaskPrefs {
     }
     fun clearDailyStudyTasks(context: Context) {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val editor = prefs.edit()
-
-        editor.remove(KEY_DAILY_STUDY_TASKS)
-        editor.apply()
+        prefs.edit {
+            remove(KEY_DAILY_STUDY_TASKS)
+        }
     }
 }
 @Composable
@@ -596,8 +593,6 @@ private fun InProgressTasks(
         filteredDailyStudyTasks
     ).flatten()
 
-    Log.d("Tasks","$allFilteredTasks")
-
     LaunchedEffect(allFilteredTasks.size) {
         inProgressTask(allFilteredTasks.size.toString())
     }
@@ -702,14 +697,14 @@ private fun InProgressTasks(
                             top.linkTo(parent.top, margin = 16.dp)
                             start.linkTo(parent.start)
                         }.fillMaxWidth().padding(start = 16.dp, end = 42.dp), fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                            fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 1
+                            fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
 
                         Text(task.taskName, modifier = Modifier.constrainAs(text2) {
                             top.linkTo(text1.bottom, margin = 10.dp)
                             start.linkTo(parent.start)
                         }.fillMaxWidth().padding(start = 16.dp, end = 25.dp), fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                            fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF000000), maxLines = 2
+                            fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF000000), maxLines = 2, overflow = TextOverflow.Ellipsis
                         )
 
                         val animatedProgress by animateFloatAsState(

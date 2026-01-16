@@ -125,7 +125,7 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
         val(column,text1,box1,addButton,taskGroup) = createRefs()
 
         Text("Add Task", modifier = Modifier.constrainAs(text1) {
-            top.linkTo(parent.top, margin = 20.dp)
+            top.linkTo(parent.top, margin = 15.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
         }, fontSize = 20.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
@@ -648,9 +648,10 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
                     description = description,
                     startDate = startDateText,
                     endDate = endDateText,
+                    completedDates = emptyList(),
                     icon = selectedGroupIcon,
                     iconBg = selectedGroupBG.value.toLong(),
-                    progress = 0.2f,
+                    progress = 0f,
                     progressStatus = "To Do"
                 )
 

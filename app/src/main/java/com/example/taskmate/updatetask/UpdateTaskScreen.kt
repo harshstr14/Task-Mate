@@ -1,6 +1,7 @@
 package com.example.taskmate.updatetask
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +23,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -71,22 +76,21 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.example.taskmate.R
 import com.example.taskmate.addtask.DateType
 import com.example.taskmate.home.TaskGroup
 import com.example.taskmate.home.TaskPrefs
 import com.example.taskmate.home.Tasks
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
+val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
 @Composable
-fun UpdateTaskScreen(navController: NavController, snackbarHostState: SnackbarHostState, taskId: String?, taskGroup: String?) {
+fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, taskGroup: String?) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -101,6 +105,7 @@ fun UpdateTaskScreen(navController: NavController, snackbarHostState: SnackbarHo
     }
 
     val task = taskList.firstOrNull { it.id == taskId }
+    Log.d("Tasks","$task")
 
     val fonts = FontFamily(
         Font(R.font.merriweathersans_bold, FontWeight.Bold),
@@ -118,8 +123,6 @@ fun UpdateTaskScreen(navController: NavController, snackbarHostState: SnackbarHo
             .toEpochMilli()
     )
 
-    val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
-
     var startDate by remember {  mutableStateOf(task?.startDate?.let {
         LocalDate.parse(it, formatter)
     }) }
@@ -132,6 +135,7 @@ fun UpdateTaskScreen(navController: NavController, snackbarHostState: SnackbarHo
     var endDateText by remember { mutableStateOf(task?.endDate ?: "Select date") }
 
     var expanded by remember { mutableStateOf(false) }
+    var expandedDates by remember { mutableStateOf(false) }
     var selectedGroup by remember { mutableStateOf(task?.taskGroup ?: "Work") }
     var selectedGroupBG by remember { mutableStateOf(Color(0xFFFFE4F2)) }
     var selectedGroupIcon by remember { mutableIntStateOf(task?.icon ?: R.drawable.briefcase) }
@@ -140,53 +144,29 @@ fun UpdateTaskScreen(navController: NavController, snackbarHostState: SnackbarHo
         targetValue = if (expanded) 180f else 0f,
         label = "arrowRotation"
     )
+    val rotationArrow2 by animateFloatAsState(
+        targetValue = if (expandedDates) 180f else 0f,
+        label = "arrowRotation"
+    )
+
+    var completedDates by remember {
+        mutableStateOf(task?.completedDates ?: emptyList())
+    }
 
     var taskGroupName by remember { mutableStateOf(task?.taskGroupName ?: "") }
     var taskName by remember { mutableStateOf(task?.taskName ?: "") }
     var description by remember { mutableStateOf(task?.description ?: "") }
 
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-        val(column,text1,box1,addButton,taskGroup,removeButton) = createRefs()
+        val(column,text1,box1,box2,addButton,taskGroup,taskDates) = createRefs()
 
         Text("Task", modifier = Modifier.constrainAs(text1) {
-            top.linkTo(parent.top, margin = 20.dp)
+            top.linkTo(parent.top, margin = 15.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
         }, fontSize = 20.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
             color = Color(0xFF24252C)
         )
-
-        Box(modifier = Modifier.constrainAs(removeButton) {
-            top.linkTo(text1.top)
-            bottom.linkTo(text1.bottom)
-            end.linkTo(parent.end, margin = 20.dp)
-        }.size(28.dp).clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFF5F33E1)).padding(end = 1.dp)
-            .clickable { task?.let { currentTask ->
-                when (currentTask.taskGroup) {
-                    TaskGroup.WORK -> TaskPrefs.removeWorkTask(context, currentTask.id)
-                    TaskGroup.PERSONAL -> TaskPrefs.removePersonalTasks(context, currentTask.id)
-                    TaskGroup.STUDY -> TaskPrefs.removeStudyTasks(context, currentTask.id)
-                    TaskGroup.DAILY_STUDY -> TaskPrefs.removeDailyStudyTasks(context, currentTask.id)
-                }
-
-                scope.launch {
-                    snackbarHostState.showSnackbar(
-                        message = "Task Removed",
-                        duration = SnackbarDuration.Short
-                    )
-                    delay(50)
-                    navController.popBackStack()
-                }
-            }}, contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.remove_icon),
-                contentDescription = "add Icon",
-                tint = Color(0xFFEEE9FF),
-                modifier = Modifier.align(Alignment.Center).size(18.dp)
-            )
-        }
 
         Box(modifier = Modifier.constrainAs(box1) {
             top.linkTo(text1.bottom, margin = 25.dp)
@@ -237,7 +217,65 @@ fun UpdateTaskScreen(navController: NavController, snackbarHostState: SnackbarHo
                     expanded = !expanded
                 }, contentAlignment = Alignment.Center) {
                     Icon(modifier = Modifier.size(12.dp).rotate(rotationArrow), painter = painterResource(R.drawable.arrow),
-                        contentDescription = "arrowLeft", tint = Color(0xFF24252C))
+                        contentDescription = "arrowLeft", tint = Color(0xFF24252C)
+                    )
+                }
+            }
+        }
+
+        Box(modifier = Modifier.constrainAs(box2) {
+            top.linkTo(box1.bottom, margin = 25.dp)
+            start.linkTo(parent.start)
+            end.linkTo(parent.end)
+        }.padding(horizontal = 20.dp).height(63.dp).fillMaxWidth().shadow(
+            elevation = 12.dp,
+            shape = RoundedCornerShape(15.dp),
+            ambientColor = Color(0xFFFFFFFF).copy(alpha = 0.2f),
+            spotColor = Color(0xFFFFFFFF).copy(alpha = 0.4f)
+        ).background(Color(0xFFFFFFFF),
+            shape = RoundedCornerShape(15.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            ConstraintLayout(modifier = Modifier.fillMaxSize()) {
+                val(boxShape,text1,text2,arrowDown) = createRefs()
+
+                Box(modifier = Modifier.constrainAs(boxShape) {
+                    top.linkTo(parent.top)
+                    bottom.linkTo(parent.bottom)
+                    start.linkTo(parent.start, margin = 15.dp)
+                }.size(34.dp).background(Color(0xFFEDE8FF),
+                    shape = RoundedCornerShape(7.dp)),
+                    contentAlignment = Alignment.Center
+                )  {
+                    Icon(modifier = Modifier.size(20.dp), painter = painterResource(R.drawable.task_icon),
+                        contentDescription = "briefcase", tint = Color(0xFF5F33E1)
+                    )
+                }
+
+                Text("Task Progress", modifier = Modifier.constrainAs(text1) {
+                    top.linkTo(parent.top, margin = 13.dp)
+                    start.linkTo(boxShape.end, margin = 10.dp)
+                }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
+                    fontSize = 9.sp, lineHeight = 12.sp, color = Color(0xFF6E6A7C)
+                )
+
+                Text("Mark Completed Days", modifier = Modifier.constrainAs(text2) {
+                    top.linkTo(text1.bottom, margin = 7.dp)
+                    start.linkTo(boxShape.end, margin = 10.dp)
+                }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
+                    fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF24252C)
+                )
+
+                Box(modifier = Modifier.constrainAs(arrowDown) {
+                    top.linkTo(parent.top)
+                    bottom.linkTo(parent.bottom)
+                    end.linkTo(parent.end, margin = 15.dp)
+                }.size(32.dp).clip(RoundedCornerShape(10.dp)).clickable {
+                    expandedDates = !expandedDates
+                }, contentAlignment = Alignment.Center) {
+                    Icon(modifier = Modifier.size(12.dp).rotate(rotationArrow2), painter = painterResource(R.drawable.arrow),
+                        contentDescription = "arrowLeft", tint = Color(0xFF24252C)
+                    )
                 }
             }
         }
@@ -275,9 +313,9 @@ fun UpdateTaskScreen(navController: NavController, snackbarHostState: SnackbarHo
                     .fillMaxWidth().shadow(
                         elevation = 12.dp,
                         shape = RoundedCornerShape(15.dp),
-                        ambientColor = Color(0xFFFFFFFF).copy(alpha = 0.2f),
-                        spotColor = Color(0xFFFFFFFF).copy(alpha = 0.4f)
-                    ).background(Color(0xFFEEE9FF),
+                        ambientColor = Color(0xFFF5F5F5).copy(alpha = 0.2f),
+                        spotColor = Color(0xFFF5F5F5).copy(alpha = 0.4f)
+                    ).background(Color(0xFFF5F5F5),
                         shape = RoundedCornerShape(15.dp)),
                 contentAlignment = Alignment.Center
             ) {
@@ -298,7 +336,12 @@ fun UpdateTaskScreen(navController: NavController, snackbarHostState: SnackbarHo
                                 containerColor = if (isSelected) Color(0xFF5F33E1) else Color(0xFFFFFFFF)
                             ),
                             modifier = Modifier.padding(horizontal = 12.dp)
-                                .fillMaxWidth().clickable {
+                                .fillMaxWidth().shadow(
+                                    elevation = 12.dp,
+                                    shape = RoundedCornerShape(15.dp),
+                                    ambientColor = if (isSelected) Color(0xFF5F33E1) else Color(0xFFFFFFFF).copy(alpha = 0.2f),
+                                    spotColor = if (isSelected) Color(0xFF5F33E1) else Color(0xFFFFFFFF).copy(alpha = 0.4f)
+                                ).clickable {
                                     selectedGroup = taskGroup
                                     selectedGroupBG = taskGroupIconColor
                                     selectedGroupIcon = taskGroupIcon
@@ -340,8 +383,91 @@ fun UpdateTaskScreen(navController: NavController, snackbarHostState: SnackbarHo
             }
         }
 
+        AnimatedVisibility( modifier = Modifier.constrainAs(taskDates) {
+            top.linkTo(box2.bottom)
+            start.linkTo(box2.start)
+            end.linkTo(box2.end)
+        }.zIndex(10f),
+            visible = expandedDates,
+            enter = fadeIn() + slideInVertically { -it / 4 },
+            exit = fadeOut() + slideOutVertically { -it / 4 }
+        ) {
+            Box(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                    .fillMaxWidth().shadow(
+                        elevation = 12.dp,
+                        shape = RoundedCornerShape(15.dp),
+                        ambientColor = Color(0xFFFFFFFF).copy(alpha = 0.2f),
+                        spotColor = Color(0xFFFFFFFF).copy(alpha = 0.4f)
+                    ).background(Color(0xFFF5F5F5),
+                        shape = RoundedCornerShape(15.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                val dates = remember(startDate, endDate) {
+                    if (startDate != null && endDate != null) {
+                        getDatesBetween(
+                            startDate!!, endDate!!
+                        )
+                    } else emptyList()
+                }
+
+                val completedDatesSet = remember(completedDates) {
+                    completedDates.mapNotNull {
+                        runCatching { LocalDate.parse(it, formatter) }.getOrNull()
+                    }.toSet()
+                }
+
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(7),
+                    contentPadding = PaddingValues(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(dates) { date ->
+                        val isCompleted = completedDatesSet.contains(date)
+
+                        val background = when {
+                            isCompleted -> Color(0xFF5F33E1)
+                            else -> Color(0xFFFFFFFF)
+                        }
+
+                        val textColor = when {
+                            isCompleted -> Color(0xFFFFFFFF)
+                            else -> Color(0xFF24252C)
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .aspectRatio(1f)
+                                .shadow(
+                                    elevation = 12.dp,
+                                    shape = RoundedCornerShape(10.dp),
+                                    ambientColor = background.copy(alpha = 0.2f),
+                                    spotColor = background.copy(alpha = 0.4f)
+                                )
+                                .background(background, RoundedCornerShape(10.dp))
+                                .clickable { task?.let {
+                                    completedDates = toggleCompletedDate(
+                                        completedDates = completedDates,
+                                        date = date
+                                    )
+                                }}
+                            ,
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = date.dayOfMonth.toString(),
+                                fontWeight = FontWeight.Medium,
+                                color = textColor
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         Column(modifier = Modifier.constrainAs(column) {
-            top.linkTo(box1.bottom, margin = (-15).dp)
+            top.linkTo(box2.bottom, margin = (-15).dp)
             bottom.linkTo(addButton.top, margin = (-15).dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
@@ -700,6 +826,7 @@ fun UpdateTaskScreen(navController: NavController, snackbarHostState: SnackbarHo
                     description = description,
                     startDate = startDateText,
                     endDate = endDateText,
+                    completedDates = completedDates,
                     icon = selectedGroupIcon,
                     iconBg = selectedGroupBG.value.toLong(),
                     progress = task.progress,
@@ -732,8 +859,9 @@ fun UpdateTaskScreen(navController: NavController, snackbarHostState: SnackbarHo
                 contentColor = Color(0xFFFFFFFF)
             ) , shape = RoundedCornerShape(10.dp)) {
 
-            Text("Update Task", fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                fontSize = 18.sp)
+            Text("Update Task", fontFamily = fonts, fontWeight = FontWeight.SemiBold,
+                fontStyle = FontStyle.Normal, fontSize = 18.sp
+            )
         }
     }
 
@@ -809,8 +937,11 @@ fun UpdateTaskScreen(navController: NavController, snackbarHostState: SnackbarHo
                             when (activeDateType) {
                                 DateType.START -> {
                                     startDate = selectedDate
-                                    startDateText = selectedDate.format(
-                                        DateTimeFormatter.ofPattern("dd MMM yyyy")
+                                    startDateText = selectedDate.format(formatter)
+                                    completedDates = filterCompletedDates(
+                                        completedDates,
+                                        startDate,
+                                        endDate
                                     )
 
                                     // Optional: clear end date if invalid
@@ -827,8 +958,11 @@ fun UpdateTaskScreen(navController: NavController, snackbarHostState: SnackbarHo
                                     } else {
                                         // ✅ VALID
                                         endDate = selectedDate
-                                        endDateText = selectedDate.format(
-                                            DateTimeFormatter.ofPattern("dd MMM yyyy")
+                                        endDateText = selectedDate.format(formatter)
+                                        completedDates = filterCompletedDates(
+                                            completedDates,
+                                            startDate,
+                                            endDate
                                         )
                                         dateError = false
                                     }
@@ -867,6 +1001,41 @@ fun UpdateTaskScreen(navController: NavController, snackbarHostState: SnackbarHo
     }
 }
 
+private fun filterCompletedDates(completedDates: List<String>, start: LocalDate?, end: LocalDate?): List<String> {
+    if (start == null || end == null) return emptyList()
+
+    return completedDates.filter {
+        val date = LocalDate.parse(it, formatter)
+        !date.isBefore(start) && !date.isAfter(end)
+    }
+}
+
+private fun getDatesBetween(startDate: LocalDate, endDate: LocalDate): List<LocalDate> {
+
+    val dates = mutableListOf<LocalDate>()
+    var current = startDate
+
+    while (!current.isAfter(endDate)) {
+        dates.add(current)
+        current = current.plusDays(1)
+    }
+    return dates
+}
+
+private fun toggleCompletedDate(completedDates: List<String>, date: LocalDate): List<String> {
+
+    val dateStr = date.format(formatter)
+    val updated = completedDates.toMutableSet()
+
+    if (updated.contains(dateStr)) {
+        updated.remove(dateStr)
+    } else {
+        updated.add(dateStr)
+    }
+
+    return updated.toList()
+}
+
 private fun addTaskToNewGroup(context: Context, group: String, task: Tasks) {
     when (group) {
         TaskGroup.WORK -> TaskPrefs.saveWorkTasks(context, task)
@@ -888,7 +1057,6 @@ private fun removeTaskFromOldGroup(context: Context, oldGroup: String, taskId: S
 @Preview(showSystemUi = true)
 @Composable
 private fun ShowAddTask() {
-    val navController = rememberNavController()
     val snackbarHostState = SnackbarHostState()
-    UpdateTaskScreen(navController,snackbarHostState, "10002",TaskGroup.WORK)
+    UpdateTaskScreen(snackbarHostState, "10002",TaskGroup.WORK)
 }

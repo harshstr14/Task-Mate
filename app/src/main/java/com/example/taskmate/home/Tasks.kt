@@ -9,6 +9,7 @@ data class Tasks(
     val description: String,
     val startDate: String,
     val endDate: String,
+    val completedDates: List<String>,
     val icon: Int,
     val iconBg: Long,
     val progress: Float,

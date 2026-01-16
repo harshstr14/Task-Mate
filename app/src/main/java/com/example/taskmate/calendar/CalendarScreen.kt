@@ -50,6 +50,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,7 +75,7 @@ import java.util.Locale
 @Composable
 fun CalendarScreen(navController: NavController) {
     val context = LocalContext.current
-    val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
+    val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
 
     val allTasks = remember {
@@ -419,7 +420,7 @@ fun CalendarScreen(navController: NavController) {
                             bottom.linkTo(text2.top)
                             start.linkTo(parent.start)
                         }.fillMaxWidth().padding(start = 14.dp, end = 65.dp), fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                            fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 1
+                            fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
 
                         Text(task.taskName, modifier = Modifier.constrainAs(text2) {
@@ -427,7 +428,7 @@ fun CalendarScreen(navController: NavController) {
                             bottom.linkTo(parent.bottom)
                             start.linkTo(parent.start)
                         }.fillMaxWidth().padding(start = 14.dp, end = 65.dp), fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                            fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF24252C), maxLines = 1
+                            fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF24252C), maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
 
                         Image(modifier = Modifier.constrainAs(clock) {
@@ -569,15 +570,17 @@ fun CalendarScreen(navController: NavController) {
                     TextButton(onClick = {
                         val selectedMillis = datePickerState.selectedDateMillis
                         if (selectedMillis != null) {
-                            val selectedDate = LocalDate.ofEpochDay(
-                                selectedMillis / (24 * 60 * 60 * 1000)
-                            )
+                            val date = Instant
+                                .ofEpochMilli(selectedMillis)
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDate()
 
                             // 🔹 Update month
-                            currentMonth = YearMonth.from(selectedDate)
+                            currentMonth = YearMonth.from(date)
 
                             // 🔹 Update selected index
-                            selectedIndex = selectedDate.dayOfMonth - 1
+                            selectedIndex = date.dayOfMonth - 1
+                            selectedDate = date
 
                             coroutineScope.launch {
                                 listState.animateScrollToItem(

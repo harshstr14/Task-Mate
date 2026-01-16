@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -110,7 +111,7 @@ fun Main_Screen() {
                         )
 
                         Text(
-                            modifier = Modifier.offset(x = if(isError) (-42).dp else (-22).dp),
+                            modifier = Modifier.offset(x = if(isError) (-42).dp else (-22).dp).weight(1f),
                             text = data.visuals.message,
                             fontFamily = fonts,
                             fontWeight = FontWeight.SemiBold,
@@ -118,6 +119,20 @@ fun Main_Screen() {
                             fontSize = 13.sp,
                             color = Color(0xFF24252C)
                         )
+
+                        data.visuals.actionLabel?.let { actionLabel ->
+                            Text(
+                                text = actionLabel,
+                                modifier = Modifier
+                                    .padding(end = 12.dp)
+                                    .clickable { data.performAction() },
+                                fontFamily = fonts,
+                                fontWeight = FontWeight.SemiBold,
+                                fontStyle = FontStyle.Normal,
+                                fontSize = 13.sp,
+                                color = Color(0xFF5F33E1)
+                            )
+                        }
                     }
                 }
             }
@@ -163,7 +178,6 @@ fun Main_Screen() {
                 val taskGroup = backStackEntry.arguments?.getString("taskGroup")
 
                 UpdateTaskScreen(
-                    navController,
                     snackbarHostState = snackbarHostState,
                     taskId = taskId,
                     taskGroup = taskGroup
