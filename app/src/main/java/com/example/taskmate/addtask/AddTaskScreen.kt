@@ -219,9 +219,9 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
                     .fillMaxWidth().shadow(
                         elevation = 12.dp,
                         shape = RoundedCornerShape(15.dp),
-                        ambientColor = Color(0xFFFFFFFF).copy(alpha = 0.2f),
-                        spotColor = Color(0xFFFFFFFF).copy(alpha = 0.4f)
-                    ).background(Color(0xFFEEE9FF),
+                        ambientColor = Color(0xFFF5F5F5).copy(alpha = 0.2f),
+                        spotColor = Color(0xFFF5F5F5).copy(alpha = 0.4f)
+                    ).background(Color(0xFFF5F5F5),
                         shape = RoundedCornerShape(15.dp)),
                 contentAlignment = Alignment.Center
             ) {
@@ -651,7 +651,7 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
                     completedDates = emptyList(),
                     icon = selectedGroupIcon,
                     iconBg = selectedGroupBG.value.toLong(),
-                    progress = 0f,
+                    progress = 0,
                     progressStatus = "To Do"
                 )
 

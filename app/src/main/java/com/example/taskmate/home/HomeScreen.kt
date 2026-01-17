@@ -1,13 +1,13 @@
 package com.example.taskmate.home
 
 import android.content.Context
-import android.util.Log
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -60,10 +60,12 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.taskmate.R
 import com.example.taskmate.navigation.BottomNavRoute
+import com.example.taskmate.updatetask.formatter
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 val fonts = FontFamily(
     Font(R.font.merriweathersans_bold, FontWeight.Bold),
@@ -336,7 +338,7 @@ fun HomeScreen(navController: NavController) {
             }, modifier3 = Modifier.constrainAs(nameText) {
                 start.linkTo(profileImage.end, margin = 15.dp)
                 top.linkTo(text1.bottom)
-            }
+            }, navController
         )
 
         TodayTaskProgress(
@@ -423,10 +425,10 @@ fun HomeScreen(navController: NavController) {
 }
 
 @Composable
-private fun ProfileView(modifier: Modifier,modifier2: Modifier,modifier3: Modifier) {
+private fun ProfileView(modifier: Modifier, modifier2: Modifier, modifier3: Modifier, navController: NavController) {
     Image(painter = painterResource(R.drawable.picofme), contentDescription = "profile Image",
         contentScale = ContentScale.Crop,
-        modifier = modifier
+        modifier = modifier.clickable { navController.navigate(BottomNavRoute.Profile.route) }
     )
 
     Text("Hello!", modifier = modifier2, fontFamily = fonts, fontWeight = FontWeight.Normal, fontStyle = FontStyle.Normal,
@@ -506,14 +508,14 @@ private fun TodayTaskProgress(modifier: Modifier, navController: NavController) 
                 }.size(80.dp)
             ) {
                 val animatedProgress by animateFloatAsState(
-                    targetValue = progressLevel,              // final progress
+                    targetValue = progressLevel / 100f,
                     animationSpec = tween(
                         durationMillis = 1200,
                         easing = FastOutSlowInEasing
                     ),
                     label = "progressAnimation"
                 )
-                val animatedText = (animatedProgress * 100).toInt()
+                val animatedText = progressLevel.toInt()
 
                 Canvas(modifier = Modifier.size(80.dp)) {
 
@@ -545,7 +547,7 @@ private fun TodayTaskProgress(modifier: Modifier, navController: NavController) 
     }
 
     LaunchedEffect(todayTasks) {
-        progressLevel = calculateGroupProgress(todayTasks)
+        progressLevel = calculateGroupProgress(todayTasks, formatter)
     }
 }
 
@@ -554,17 +556,18 @@ private fun getTodayTaskMessage(progress: Float): String {
         progress == 0f ->
             "Start your today’s task\nand build momentum 🚀"
 
-        progress in 0.01f..0.3f ->
+        progress in 1f..30f ->
             "Good start so far,\nkeep moving forward 💪"
 
-        progress in 0.31f..0.6f ->
-            "You're making steady \nprogress,stay focused 👍"
+        progress in 31f..60f ->
+            "You're making steady \nprogress, stay focused 👍"
 
-        progress in 0.61f..0.9f ->
+        progress in 61f..90f ->
             "Almost there now,\nkeep pushing strong 🔥"
 
-        progress >= 1f ->
-            "All today’s tasks \ncompleted,great job 🎉"
+        progress >= 100f ->
+            "All today’s tasks \ncompleted, great job 🎉"
+
         else ->
             "Your today’s task\nalmost done!"
     }
@@ -708,7 +711,7 @@ private fun InProgressTasks(
                         )
 
                         val animatedProgress by animateFloatAsState(
-                            targetValue = task.progress,
+                            targetValue = task.progress / 100f,
                             animationSpec = tween(
                                 durationMillis = 1200,
                                 easing = FastOutSlowInEasing
@@ -757,9 +760,11 @@ private fun InProgressTasks(
         }
     }
 }
+
 private fun filterTasksAboveTenPercent(tasks: List<Tasks>): List<Tasks> {
-    return tasks.filter { it.progress > 0.1f && it.progress < 1f}
+    return tasks.filter { it.progress in 1..99 }
 }
+
 @Composable
 private fun TaskGroups(modifier: Modifier, navController: NavController) {
     val progressList = remember { mutableStateListOf(0f, 0f, 0f, 0f) }
@@ -847,14 +852,14 @@ private fun TaskGroups(modifier: Modifier, navController: NavController) {
                         }.size(42.dp)
                     ) {
                         val animatedProgress by animateFloatAsState(
-                            targetValue = progressList[index],
+                            targetValue = progressList[index] / 100f,
                             animationSpec = tween(
                                 durationMillis = 1200,
                                 easing = FastOutSlowInEasing
                             ),
                             label = "progressAnimation"
                         )
-                        val animatedText = (animatedProgress * 100).toInt()
+                        val animatedText = progressList[index].toInt()
 
                         Canvas(modifier = Modifier.size(42.dp)) {
 
@@ -888,16 +893,46 @@ private fun TaskGroups(modifier: Modifier, navController: NavController) {
     }
 
     LaunchedEffect(Unit) {
-        progressList[0] = calculateGroupProgress(workTasksList)
-        progressList[1] = calculateGroupProgress(personalTasksList)
-        progressList[2] = calculateGroupProgress(studyTasksList)
-        progressList[3] = calculateGroupProgress(dailyStudyTasksList)
+        progressList[0] = calculateGroupProgress(workTasksList, formatter)
+        progressList[1] = calculateGroupProgress(personalTasksList, formatter)
+        progressList[2] = calculateGroupProgress(studyTasksList, formatter)
+        progressList[3] = calculateGroupProgress(dailyStudyTasksList, formatter)
     }
 }
 
-private fun calculateGroupProgress(tasks: List<Tasks>): Float {
+private fun calculateGroupProgress(tasks: List<Tasks>, formatter: DateTimeFormatter): Float {
     if (tasks.isEmpty()) return 0f
-    return tasks.map { it.progress }.average().toFloat()
+
+    var totalDays = 0
+    var completedDays = 0
+
+    tasks.forEach { task ->
+        val start = runCatching {
+            LocalDate.parse(task.startDate, formatter)
+        }.getOrNull()
+
+        val end = runCatching {
+            LocalDate.parse(task.endDate, formatter)
+        }.getOrNull()
+
+        if (start != null && end != null && !end.isBefore(start)) {
+            val days =
+                ChronoUnit.DAYS.between(start, end).toInt() + 1
+
+            totalDays += days
+
+            completedDays += task.completedDates.count {
+                runCatching {
+                    val date = LocalDate.parse(it, formatter)
+                    !date.isBefore(start) && !date.isAfter(end)
+                }.getOrDefault(false)
+            }
+        }
+    }
+
+    if (totalDays == 0) return 0f
+
+    return (completedDays.toFloat() / totalDays) * 100f
 }
 
 @Preview(showSystemUi = true)

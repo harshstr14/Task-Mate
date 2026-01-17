@@ -58,6 +58,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
@@ -248,7 +249,7 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
                     contentAlignment = Alignment.Center
                 )  {
                     Icon(modifier = Modifier.size(20.dp), painter = painterResource(R.drawable.task_icon),
-                        contentDescription = "briefcase", tint = Color(0xFF5F33E1)
+                        contentDescription = "Task Icon", tint = Color(0xFF5F33E1)
                     )
                 }
 
@@ -397,8 +398,8 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
                     .fillMaxWidth().shadow(
                         elevation = 12.dp,
                         shape = RoundedCornerShape(15.dp),
-                        ambientColor = Color(0xFFFFFFFF).copy(alpha = 0.2f),
-                        spotColor = Color(0xFFFFFFFF).copy(alpha = 0.4f)
+                        ambientColor = Color(0xFFF5F5F5).copy(alpha = 0.2f),
+                        spotColor = Color(0xFFF5F5F5).copy(alpha = 0.4f)
                     ).background(Color(0xFFF5F5F5),
                         shape = RoundedCornerShape(15.dp)),
                 contentAlignment = Alignment.Center
@@ -425,6 +426,10 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
                 ) {
                     items(dates) { date ->
                         val isCompleted = completedDatesSet.contains(date)
+                        val today = LocalDate.now()
+
+                        val isFuture = date.isAfter(today)
+                        val alpha = if (isFuture) 0.4f else 1f
 
                         val background = when {
                             isCompleted -> Color(0xFF5F33E1)
@@ -446,14 +451,16 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
                                     spotColor = background.copy(alpha = 0.4f)
                                 )
                                 .background(background, RoundedCornerShape(10.dp))
-                                .clickable { task?.let {
-                                    completedDates = toggleCompletedDate(
-                                        completedDates = completedDates,
-                                        date = date
-                                    )
-                                }}
-                            ,
-                            contentAlignment = Alignment.Center
+                                .then(
+                                    if (!isFuture)
+                                        Modifier.clickable {
+                                            completedDates = toggleCompletedDate(
+                                                completedDates = completedDates,
+                                                date = date
+                                            )
+                                        }
+                                    else Modifier
+                                ).alpha(alpha), contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = date.dayOfMonth.toString(),
@@ -817,6 +824,12 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
                     return@Button
                 }
 
+                val finalProgress = calculateProgress(
+                    start = startDate!!,
+                    end = endDate!!,
+                    completedDates = completedDates
+                )
+
                 val updatedTask = Tasks(
                     id = task?.id ?: return@Button,
                     time = System.currentTimeMillis(),
@@ -829,8 +842,12 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
                     completedDates = completedDates,
                     icon = selectedGroupIcon,
                     iconBg = selectedGroupBG.value.toLong(),
-                    progress = task.progress,
-                    progressStatus = task.progressStatus
+                    progress = finalProgress,
+                    progressStatus = when (finalProgress) {
+                        0 -> "To Do"
+                        in 1..99 -> "In Progress"
+                        else -> "Completed"
+                    }
                 )
 
                 val oldGroup = task.taskGroup
@@ -999,6 +1016,22 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
             selectedGroupBG = Color(bg.toULong())
         }
     }
+}
+
+private fun calculateProgress(start: LocalDate, end: LocalDate, completedDates: List<String>): Int {
+    val totalDays =
+        java.time.temporal.ChronoUnit.DAYS.between(start, end).toInt() + 1
+
+    if (totalDays <= 0) return 0
+
+    val completedCount = completedDates.count {
+        runCatching {
+            val date = LocalDate.parse(it, formatter)
+            !date.isBefore(start) && !date.isAfter(end)
+        }.getOrDefault(false)
+    }
+
+    return ((completedCount.toFloat() / totalDays) * 100).toInt()
 }
 
 private fun filterCompletedDates(completedDates: List<String>, start: LocalDate?, end: LocalDate?): List<String> {

@@ -305,7 +305,7 @@ fun CalendarScreen(navController: NavController) {
         }
 
         val categoriesList = listOf(
-            "All", "To Do", "In Progress", "Complete"
+            "All", "To Do", "In Progress", "Completed"
         )
 
         var selectedCategoryIndex by remember { mutableIntStateOf(0) }
@@ -367,7 +367,7 @@ fun CalendarScreen(navController: NavController) {
             when (categoriesList[selectedCategoryIndex]) {
                 "To Do" -> filteredTasks.filter { it.progressStatus == "To Do" }
                 "In Progress" -> filteredTasks.filter { it.progressStatus == "In Progress" }
-                "Complete" -> filteredTasks.filter { it.progressStatus == "Done" }
+                "Completed" -> filteredTasks.filter { it.progressStatus == "Completed" }
                 else -> filteredTasks
             }
         }

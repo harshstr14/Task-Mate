@@ -12,6 +12,6 @@ data class Tasks(
     val completedDates: List<String>,
     val icon: Int,
     val iconBg: Long,
-    val progress: Float,
+    val progress: Int,
     val progressStatus: String
 )

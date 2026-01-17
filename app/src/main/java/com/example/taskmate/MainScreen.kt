@@ -56,6 +56,7 @@ import com.example.taskmate.home.HomeScreen
 import com.example.taskmate.home.fonts
 import com.example.taskmate.navigation.BottomNavRoute
 import com.example.taskmate.notification.NotificationScreen
+import com.example.taskmate.profile.ProfileScreen
 import com.example.taskmate.search.SearchScreen
 import com.example.taskmate.tasksscreen.TasksScreen
 import com.example.taskmate.ui.theme.TaskMateTheme
@@ -150,6 +151,9 @@ fun Main_Screen() {
             composable(BottomNavRoute.Home.route) {
                 HomeScreen(navController)  // ⬅ current Home UI
             }
+            composable(BottomNavRoute.Profile.route) {
+                ProfileScreen()
+            }
             composable(BottomNavRoute.Calendar.route) {
                 CalendarScreen(navController)
             }
@@ -157,7 +161,7 @@ fun Main_Screen() {
                 NotificationScreen()
             }
             composable(BottomNavRoute.Search.route) {
-                SearchScreen()
+                SearchScreen(navController, snackbarHostState = snackbarHostState)
             }
             composable(BottomNavRoute.AddTask.route) {
                 AddTaskScreen(snackbarHostState)
