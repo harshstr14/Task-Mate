@@ -44,9 +44,9 @@ fun NotificationScreen() {
     )
 
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-        val(text1,text2,text3,icon,text4,lazyColumn) = createRefs()
+        val (titleText, todayText, clearAllButton, emptyIcon, emptyMessage, notificationsList) = createRefs()
 
-        Text("Notification", modifier = Modifier.constrainAs(text1) {
+        Text("Notification", modifier = Modifier.constrainAs(titleText) {
             top.linkTo(parent.top, margin = 15.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
@@ -54,15 +54,15 @@ fun NotificationScreen() {
             color = Color(0xFF24252C)
         )
 
-        Text("Today", modifier = Modifier.constrainAs(text2) {
-            top.linkTo(text1.bottom, margin = 15.dp)
+        Text("Today", modifier = Modifier.constrainAs(todayText) {
+            top.linkTo(titleText.bottom, margin = 15.dp)
             start.linkTo(parent.start, margin = 20.dp)
         }, fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
             color = Color(0xFF24252C)
         )
 
-        Box(modifier = Modifier.constrainAs(text3) {
-            top.linkTo(text1.bottom, margin = 15.dp)
+        Box(modifier = Modifier.constrainAs(clearAllButton) {
+            top.linkTo(titleText.bottom, margin = 15.dp)
             end.linkTo(parent.end, margin = 20.dp)
         }.size(72.dp,20.dp).clip(RoundedCornerShape(6.dp))
             .clickable { }, contentAlignment = Alignment.Center) {
@@ -72,7 +72,7 @@ fun NotificationScreen() {
         }
 
         Icon(painter = painterResource(R.drawable.empty_notification), contentDescription = "empty_notification",
-            tint = Color(0xFF5F33E1), modifier = Modifier.constrainAs(icon) {
+            tint = Color(0xFF5F33E1), modifier = Modifier.constrainAs(emptyIcon) {
                 top.linkTo(parent.top)
                 bottom.linkTo(parent.bottom)
                 start.linkTo(parent.start)
@@ -80,8 +80,8 @@ fun NotificationScreen() {
             }.size(92.dp)
         )
 
-        Text("No Notifications", modifier = Modifier.constrainAs(text4) {
-            top.linkTo(icon.bottom)
+        Text("No Notifications", modifier = Modifier.constrainAs(emptyMessage) {
+            top.linkTo(emptyIcon.bottom)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
         }, fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
@@ -116,8 +116,8 @@ fun NotificationScreen() {
             "8:00 am","7:00 am","10:00 am","6:00 pm"
         )
 
-        LazyColumn(modifier = Modifier.constrainAs(lazyColumn) {
-            top.linkTo(text2.bottom, margin = 20.dp)
+        LazyColumn(modifier = Modifier.constrainAs(notificationsList) {
+            top.linkTo(todayText.bottom, margin = 20.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
             height = Dimension.fillToConstraints
@@ -142,9 +142,9 @@ fun NotificationScreen() {
                 ),shape = RoundedCornerShape(15.dp)) {
                     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
 
-                        val (boxShape,text1,text2,text3) = createRefs()
+                        val (iconBox, taskNameText, deadlineText, timeText) = createRefs()
 
-                        Box(modifier = Modifier.constrainAs(boxShape) {
+                        Box(modifier = Modifier.constrainAs(iconBox) {
                             top.linkTo(parent.top)
                             start.linkTo(parent.start, margin = 15.dp)
                             bottom.linkTo(parent.bottom)
@@ -155,23 +155,23 @@ fun NotificationScreen() {
                             Image(modifier = Modifier.size(20.dp), painter = painterResource(taskGroupIcon), contentDescription = "briefcase")
                         }
 
-                        Text(taskGroup, modifier = Modifier.constrainAs(text1) {
+                        Text(taskGroup, modifier = Modifier.constrainAs(taskNameText) {
                             top.linkTo(parent.top, margin = 16.dp)
-                            start.linkTo(boxShape.end, margin = 12.dp)
+                            start.linkTo(iconBox.end, margin = 12.dp)
                         }, fontFamily = com.example.taskmate.home.fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF24252C), maxLines = 1
                         )
 
-                        Text(totalTask, modifier = Modifier.constrainAs(text2) {
-                            start.linkTo(text1.start)
-                            top.linkTo(text1.bottom, margin = 5.dp)
+                        Text(totalTask, modifier = Modifier.constrainAs(deadlineText) {
+                            start.linkTo(taskNameText.start)
+                            top.linkTo(taskNameText.bottom, margin = 5.dp)
                         }, fontFamily = com.example.taskmate.home.fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 1
                         )
 
-                        Text(time, modifier = Modifier.constrainAs(text3) {
+                        Text(time, modifier = Modifier.constrainAs(timeText) {
                             end.linkTo(parent.end, margin = 15.dp)
-                            top.linkTo(text1.top)
+                            top.linkTo(taskNameText.top)
                         }, fontFamily = com.example.taskmate.home.fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C)
                         )

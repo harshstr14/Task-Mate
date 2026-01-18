@@ -152,7 +152,7 @@ fun Main_Screen() {
                 HomeScreen(navController)  // ⬅ current Home UI
             }
             composable(BottomNavRoute.Profile.route) {
-                ProfileScreen()
+                ProfileScreen(snackbarHostState = snackbarHostState)
             }
             composable(BottomNavRoute.Calendar.route) {
                 CalendarScreen(navController)

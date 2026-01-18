@@ -60,21 +60,17 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun TasksScreen(
-    navController: NavHostController,
-    snackbarHostState: SnackbarHostState,
-    taskGroup: String?
-) {
+fun TasksScreen(navController: NavHostController, snackbarHostState: SnackbarHostState, taskGroup: String?) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-        val(text1,text2,text3,text4,taskListsColumn,icon) = createRefs()
+    var tasksList by remember { mutableStateOf(mutableListOf<Tasks>()) }
+    var pendingDelete by remember { mutableStateOf<Tasks?>(null) }
+    val swipeStates = remember { mutableMapOf<String, SwipeToDismissBoxState>() }
+    var showClearAllDialog by remember { mutableStateOf(false) }
 
-        var tasksList by remember { mutableStateOf(mutableListOf<Tasks>()) }
-        var pendingDelete by remember { mutableStateOf<Tasks?>(null) }
-        val swipeStates = remember { mutableMapOf<String, SwipeToDismissBoxState>() }
-        var showClearAllDialog by remember { mutableStateOf(false) }
+    ConstraintLayout(modifier = Modifier.fillMaxSize()) {
+        val (titleTasks, subtitleTaskGroup, clearAllButton, emptyTasksText, tasksListColumn, emptyTasksIcon) = createRefs()
 
         LaunchedEffect(taskGroup) {
             tasksList = when(taskGroup) {
@@ -88,7 +84,7 @@ fun TasksScreen(
 
         if (tasksList.isEmpty()) {
             Icon(painter = painterResource(R.drawable.empty_task), contentDescription = "empty_notification",
-                tint = Color(0xFF5F33E1), modifier = Modifier.constrainAs(icon) {
+                tint = Color(0xFF5F33E1), modifier = Modifier.constrainAs(emptyTasksIcon) {
                     top.linkTo(parent.top)
                     bottom.linkTo(parent.bottom)
                     start.linkTo(parent.start, margin = (-3).dp)
@@ -96,8 +92,8 @@ fun TasksScreen(
                 }.size(92.dp)
             )
 
-            Text("Empty Tasks ", modifier = Modifier.constrainAs(text4) {
-                top.linkTo(icon.bottom, margin = (-8).dp)
+            Text("Empty Tasks ", modifier = Modifier.constrainAs(emptyTasksText) {
+                top.linkTo(emptyTasksIcon.bottom, margin = (-8).dp)
                 start.linkTo(parent.start)
                 end.linkTo(parent.end)
             }, fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
@@ -105,7 +101,7 @@ fun TasksScreen(
             )
         }
 
-        Text("Tasks", modifier = Modifier.constrainAs(text1) {
+        Text("Tasks", modifier = Modifier.constrainAs(titleTasks) {
             top.linkTo(parent.top, margin = 15.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
@@ -113,15 +109,15 @@ fun TasksScreen(
             color = Color(0xFF24252C)
         )
 
-        Text("$taskGroup tasks", modifier = Modifier.constrainAs(text2) {
-            top.linkTo(text1.bottom, margin = 15.dp)
+        Text("$taskGroup tasks", modifier = Modifier.constrainAs(subtitleTaskGroup) {
+            top.linkTo(titleTasks.bottom, margin = 15.dp)
             start.linkTo(parent.start, margin = 20.dp)
         }, fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
             color = Color(0xFF24252C)
         )
 
-        Box(modifier = Modifier.constrainAs(text3) {
-            top.linkTo(text1.bottom, margin = 15.dp)
+        Box(modifier = Modifier.constrainAs(clearAllButton) {
+            top.linkTo(titleTasks.bottom, margin = 15.dp)
             end.linkTo(parent.end, margin = 20.dp)
         }.size(72.dp,20.dp).clip(RoundedCornerShape(6.dp))
             .clickable {
@@ -141,8 +137,8 @@ fun TasksScreen(
             )
         }
 
-        LazyColumn(modifier = Modifier.constrainAs(taskListsColumn) {
-            top.linkTo(text2.bottom, margin = 20.dp)
+        LazyColumn(modifier = Modifier.constrainAs(tasksListColumn) {
+            top.linkTo(subtitleTaskGroup.bottom, margin = 20.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
             bottom.linkTo(parent.bottom, margin = (-15).dp)
@@ -199,17 +195,17 @@ fun TasksScreen(
                         ), onClick = { navController.navigate("update_task/${task.id}/${task.taskGroup}") }
                             ,shape = RoundedCornerShape(15.dp)) {
                             ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-                                val(text1,text2,clock,timeText,boxShape,boxShape2) = createRefs()
+                                val (taskGroupNameText, taskNameText, clockIcon, taskTimeText, taskIconBox, statusBox) = createRefs()
 
-                                Text(task.taskGroupName, modifier = Modifier.constrainAs(text1) {
+                                Text(task.taskGroupName, modifier = Modifier.constrainAs(taskGroupNameText) {
                                     top.linkTo(parent.top, margin = 5.dp)
-                                    bottom.linkTo(text2.top)
+                                    bottom.linkTo(taskNameText.top)
                                     start.linkTo(parent.start)
                                 }.fillMaxWidth().padding(start = 14.dp, end = 65.dp), fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                                     fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 1, overflow = TextOverflow.Ellipsis
                                 )
 
-                                Text(task.taskName, modifier = Modifier.constrainAs(text2) {
+                                Text(task.taskName, modifier = Modifier.constrainAs(taskNameText) {
                                     top.linkTo(parent.top)
                                     bottom.linkTo(parent.bottom)
                                     start.linkTo(parent.start)
@@ -217,20 +213,20 @@ fun TasksScreen(
                                     fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF24252C), maxLines = 1 , overflow = TextOverflow.Ellipsis
                                 )
 
-                                Image(modifier = Modifier.constrainAs(clock) {
+                                Image(modifier = Modifier.constrainAs(clockIcon) {
                                     bottom.linkTo(parent.bottom, margin = 14.dp)
                                     start.linkTo(parent.start, margin = 15.dp)
                                 }.size(14.dp), painter = painterResource(R.drawable.clock), contentDescription = "clock Icon")
 
-                                Text(formatTime(task.time), modifier = Modifier.constrainAs(timeText) {
-                                    top.linkTo(clock.top)
-                                    start.linkTo(clock.end, margin = 2.dp)
-                                    bottom.linkTo(clock.bottom)
+                                Text(formatTime(task.time), modifier = Modifier.constrainAs(taskTimeText) {
+                                    top.linkTo(clockIcon.top)
+                                    start.linkTo(clockIcon.end, margin = 2.dp)
+                                    bottom.linkTo(clockIcon.bottom)
                                 }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                                     fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFFAB94FF), maxLines = 1
                                 )
 
-                                Box(modifier = Modifier.constrainAs(boxShape) {
+                                Box(modifier = Modifier.constrainAs(taskIconBox) {
                                     top.linkTo(parent.top, margin = 15.dp)
                                     end.linkTo(parent.end, margin = 15.dp)
                                 }.size(34.dp).background(Color(task.iconBg.toULong()),
@@ -249,7 +245,7 @@ fun TasksScreen(
                                         "To Do" -> Color(0xFFE3F2FF)
                                         else -> Color(0xFFEDE8FF)
                                     }
-                                ), modifier = Modifier.constrainAs(boxShape2) {
+                                ), modifier = Modifier.constrainAs(statusBox) {
                                     bottom.linkTo(parent.bottom, margin = 15.dp)
                                     end.linkTo(parent.end, margin = 15.dp)
                                 }.shadow( elevation = 12.dp,

@@ -44,6 +44,8 @@ android {
 }
 
 dependencies {
+    implementation(libs.ucrop)
+    implementation(libs.coil.compose)
     implementation(libs.lottie.compose)
     implementation(libs.gson)
     implementation(libs.androidx.navigation.compose)

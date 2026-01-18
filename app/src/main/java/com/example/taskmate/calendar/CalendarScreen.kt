@@ -140,9 +140,11 @@ fun CalendarScreen(navController: NavController) {
     )
 
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-        val(text1,text4,icon,arrowLeft,arrowRight,addButton,dateButton,datesRow,categories,taskListsColumn) = createRefs()
+        val (monthTitleText,emptyStateText,emptyStateIcon,previousMonthButton,nextMonthButton,
+            addTaskButton,openCalendarButton,dateSelectorRow,categoryFilterRow,taskListColumn
+        ) = createRefs()
 
-        Text(currentMonth.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH) + ", ${currentMonth.year}", modifier = Modifier.constrainAs(text1) {
+        Text(currentMonth.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH) + ", ${currentMonth.year}", modifier = Modifier.constrainAs(monthTitleText) {
             top.linkTo(parent.top, margin = 20.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
@@ -164,10 +166,10 @@ fun CalendarScreen(navController: NavController) {
             color = Color(0xFF24252C)
         )
 
-        Box(modifier = Modifier.constrainAs(arrowLeft) {
-            top.linkTo(text1.top)
-            bottom.linkTo(text1.bottom)
-            end.linkTo(text1.start, margin = 2.dp)
+        Box(modifier = Modifier.constrainAs(previousMonthButton) {
+            top.linkTo(monthTitleText.top)
+            bottom.linkTo(monthTitleText.bottom)
+            end.linkTo(monthTitleText.start, margin = 2.dp)
         }.size(32.dp).clickable {
             currentMonth = currentMonth.minusMonths(1)
         }, contentAlignment = Alignment.Center) {
@@ -175,10 +177,10 @@ fun CalendarScreen(navController: NavController) {
                 contentDescription = "arrowLeft", tint = Color(0xFF24252C))
         }
 
-        Box(modifier = Modifier.constrainAs(arrowRight) {
-            top.linkTo(text1.top)
-            bottom.linkTo(text1.bottom)
-            start.linkTo(text1.end, margin = 1.dp)
+        Box(modifier = Modifier.constrainAs(nextMonthButton) {
+            top.linkTo(monthTitleText.top)
+            bottom.linkTo(monthTitleText.bottom)
+            start.linkTo(monthTitleText.end, margin = 1.dp)
         }.size(32.dp).clickable {
             currentMonth = currentMonth.plusMonths(1)
         }, contentAlignment = Alignment.Center) {
@@ -186,9 +188,9 @@ fun CalendarScreen(navController: NavController) {
                 contentDescription = "arrowLeft", tint = Color(0xFF24252C))
         }
 
-        Box(modifier = Modifier.constrainAs(addButton) {
-                    top.linkTo(text1.top)
-                    bottom.linkTo(text1.bottom)
+        Box(modifier = Modifier.constrainAs(addTaskButton) {
+                    top.linkTo(monthTitleText.top)
+                    bottom.linkTo(monthTitleText.bottom)
                     end.linkTo(parent.end, margin = 20.dp)
                 }.size(28.dp).clip(RoundedCornerShape(10.dp))
                 .background(Color(0xFF5F33E1))
@@ -202,9 +204,9 @@ fun CalendarScreen(navController: NavController) {
             )
         }
 
-        Box(modifier = Modifier.constrainAs(dateButton) {
-            top.linkTo(text1.top)
-            bottom.linkTo(text1.bottom)
+        Box(modifier = Modifier.constrainAs(openCalendarButton) {
+            top.linkTo(monthTitleText.top)
+            bottom.linkTo(monthTitleText.bottom)
             start.linkTo(parent.start, margin = 20.dp)
         }.size(28.dp).clip(RoundedCornerShape(10.dp))
             .background(Color(0xFF5F33E1))
@@ -218,8 +220,8 @@ fun CalendarScreen(navController: NavController) {
             )
         }
 
-        LazyRow(state = listState, modifier = Modifier.constrainAs(datesRow) {
-            top.linkTo(text1.bottom, margin = 25.dp)
+        LazyRow(state = listState, modifier = Modifier.constrainAs(dateSelectorRow) {
+            top.linkTo(monthTitleText.bottom, margin = 25.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
         }, contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp))
@@ -264,16 +266,16 @@ fun CalendarScreen(navController: NavController) {
                     } },shape = RoundedCornerShape(15.dp))
                 {
                     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-                        val (month, day, week) = createRefs()
+                        val (monthText,dayText,weekDayText) = createRefs()
 
                         Text(
                             text = date.month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH),
                             fontSize = 11.sp, lineHeight = 14.sp,
                             fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             color = textColor,
-                            modifier = Modifier.constrainAs(month) {
+                            modifier = Modifier.constrainAs(monthText) {
                                 top.linkTo(parent.top)
-                                bottom.linkTo(day.top)
+                                bottom.linkTo(dayText.top)
                                 centerHorizontallyTo(parent)
                             }
                         )
@@ -283,7 +285,7 @@ fun CalendarScreen(navController: NavController) {
                             fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             fontSize = 19.sp, lineHeight = 22.sp,
                             color = textColor,
-                            modifier = Modifier.constrainAs(day) {
+                            modifier = Modifier.constrainAs(dayText) {
                                 centerTo(parent)
                             }
                         )
@@ -293,9 +295,9 @@ fun CalendarScreen(navController: NavController) {
                             fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             fontSize = 11.sp, lineHeight = 14.sp,
                             color = textColor,
-                            modifier = Modifier.constrainAs(week) {
+                            modifier = Modifier.constrainAs(weekDayText) {
                                 bottom.linkTo(parent.bottom)
-                                top.linkTo(day.bottom)
+                                top.linkTo(dayText.bottom)
                                 centerHorizontallyTo(parent)
                             }
                         )
@@ -310,8 +312,8 @@ fun CalendarScreen(navController: NavController) {
 
         var selectedCategoryIndex by remember { mutableIntStateOf(0) }
 
-        LazyRow(modifier = Modifier.constrainAs(categories) {
-            top.linkTo(datesRow.bottom, margin = 28.dp)
+        LazyRow(modifier = Modifier.constrainAs(categoryFilterRow) {
+            top.linkTo(dateSelectorRow.bottom, margin = 28.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
         }, contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp))
@@ -348,9 +350,9 @@ fun CalendarScreen(navController: NavController) {
                     spotColor = Color(0xFF5F33E1).copy(alpha = 0.4f)
                 ).clickable{selectedCategoryIndex = index},shape = RoundedCornerShape(9.dp)) {
                     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-                        val(text1) = createRefs()
+                        val(categoryText) = createRefs()
 
-                        Text(category, modifier = Modifier.constrainAs(text1) {
+                        Text(category, modifier = Modifier.constrainAs(categoryText) {
                             top.linkTo(parent.top)
                             bottom.linkTo(parent.bottom)
                             start.linkTo(parent.start, margin = 20.dp)
@@ -374,16 +376,16 @@ fun CalendarScreen(navController: NavController) {
 
         if (categoryFilteredTasks.isEmpty()) {
             Icon(painter = painterResource(R.drawable.empty_task), contentDescription = "empty_notification",
-                tint = Color(0xFF5F33E1), modifier = Modifier.constrainAs(icon) {
-                    top.linkTo(categories.bottom)
+                tint = Color(0xFF5F33E1), modifier = Modifier.constrainAs(emptyStateIcon) {
+                    top.linkTo(categoryFilterRow.bottom)
                     bottom.linkTo(parent.bottom)
                     start.linkTo(parent.start, margin = (-3).dp)
                     end.linkTo(parent.end)
                 }.size(92.dp)
             )
 
-            Text("Empty Tasks ", modifier = Modifier.constrainAs(text4) {
-                top.linkTo(icon.bottom, margin = (-8).dp)
+            Text("Empty Tasks ", modifier = Modifier.constrainAs(emptyStateText) {
+                top.linkTo(emptyStateIcon.bottom, margin = (-8).dp)
                 start.linkTo(parent.start)
                 end.linkTo(parent.end)
             }, fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
@@ -391,8 +393,8 @@ fun CalendarScreen(navController: NavController) {
             )
         }
 
-        LazyColumn(modifier = Modifier.constrainAs(taskListsColumn) {
-            top.linkTo(categories.bottom, margin = 25.dp)
+        LazyColumn(modifier = Modifier.constrainAs(taskListColumn) {
+            top.linkTo(categoryFilterRow.bottom, margin = 25.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
             bottom.linkTo(parent.bottom, margin = (-15).dp)
@@ -413,17 +415,18 @@ fun CalendarScreen(navController: NavController) {
                 ), onClick = { navController.navigate("update_task/${task.id}/${task.taskGroup}") }
                     ,shape = RoundedCornerShape(15.dp)) {
                     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-                        val(text1,text2,clock,timeText,boxShape,boxShape2) = createRefs()
+                        val (taskGroupNameText,taskNameText,taskTimeIcon,taskTimeText,
+                            taskIconContainer,taskStatusChip) = createRefs()
 
-                        Text(task.taskGroupName, modifier = Modifier.constrainAs(text1) {
+                        Text(task.taskGroupName, modifier = Modifier.constrainAs(taskGroupNameText) {
                             top.linkTo(parent.top, margin = 5.dp)
-                            bottom.linkTo(text2.top)
+                            bottom.linkTo(taskNameText.top)
                             start.linkTo(parent.start)
                         }.fillMaxWidth().padding(start = 14.dp, end = 65.dp), fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
 
-                        Text(task.taskName, modifier = Modifier.constrainAs(text2) {
+                        Text(task.taskName, modifier = Modifier.constrainAs(taskNameText) {
                             top.linkTo(parent.top)
                             bottom.linkTo(parent.bottom)
                             start.linkTo(parent.start)
@@ -431,20 +434,20 @@ fun CalendarScreen(navController: NavController) {
                             fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF24252C), maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
 
-                        Image(modifier = Modifier.constrainAs(clock) {
+                        Image(modifier = Modifier.constrainAs(taskTimeIcon) {
                             bottom.linkTo(parent.bottom, margin = 14.dp)
                             start.linkTo(parent.start, margin = 15.dp)
                         }.size(14.dp), painter = painterResource(R.drawable.clock), contentDescription = "clock Icon")
 
-                        Text(formatTime(task.time), modifier = Modifier.constrainAs(timeText) {
-                            top.linkTo(clock.top)
-                            start.linkTo(clock.end, margin = 2.dp)
-                            bottom.linkTo(clock.bottom)
+                        Text(formatTime(task.time), modifier = Modifier.constrainAs(taskTimeText) {
+                            top.linkTo(taskTimeIcon.top)
+                            start.linkTo(taskTimeIcon.end, margin = 2.dp)
+                            bottom.linkTo(taskTimeIcon.bottom)
                         }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFFAB94FF), maxLines = 1
                         )
 
-                        Box(modifier = Modifier.constrainAs(boxShape) {
+                        Box(modifier = Modifier.constrainAs(taskIconContainer) {
                             top.linkTo(parent.top, margin = 15.dp)
                             end.linkTo(parent.end, margin = 15.dp)
                         }.size(34.dp).background(Color(task.iconBg.toULong()),
@@ -463,7 +466,7 @@ fun CalendarScreen(navController: NavController) {
                                 "To Do" -> Color(0xFFE3F2FF)
                                 else -> Color(0xFFEDE8FF)
                             }
-                        ), modifier = Modifier.constrainAs(boxShape2) {
+                        ), modifier = Modifier.constrainAs(taskStatusChip) {
                             bottom.linkTo(parent.bottom, margin = 15.dp)
                             end.linkTo(parent.end, margin = 15.dp)
                         }.shadow( elevation = 12.dp,

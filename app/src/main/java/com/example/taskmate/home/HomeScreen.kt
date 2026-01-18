@@ -325,41 +325,42 @@ fun HomeScreen(navController: NavController) {
     var inProgressTasks by remember { mutableStateOf("0") }
 
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-        val(profileImage,text1,nameText,card,text2,circle1,lazyRow,lazyColumn,
-            text3,circle2,defaultCard) = createRefs()
+        val (profileAvatar,greetingText,userNameText,todayProgressCard,inProgressTitle,
+            inProgressCountBadge,inProgressList,taskGroupList,taskGroupTitle,taskGroupCountBadge,
+            emptyInProgressCard) = createRefs()
 
-        ProfileView(modifier = Modifier.constrainAs(profileImage) {
+        ProfileView(modifier = Modifier.constrainAs(profileAvatar) {
             top.linkTo(parent.top, margin = 15.dp)
             start.linkTo(parent.start, margin = 22.dp)
         }.size(52.dp).clip(CircleShape),
-            modifier2 = Modifier.constrainAs(text1) {
-                start.linkTo(profileImage.end, margin = 15.dp)
-                top.linkTo(profileImage.top, margin = 4.dp)
-            }, modifier3 = Modifier.constrainAs(nameText) {
-                start.linkTo(profileImage.end, margin = 15.dp)
-                top.linkTo(text1.bottom)
+            modifier2 = Modifier.constrainAs(greetingText) {
+                start.linkTo(profileAvatar.end, margin = 15.dp)
+                top.linkTo(profileAvatar.top, margin = 4.dp)
+            }, modifier3 = Modifier.constrainAs(userNameText) {
+                start.linkTo(profileAvatar.end, margin = 15.dp)
+                top.linkTo(greetingText.bottom)
             }, navController
         )
 
         TodayTaskProgress(
-            modifier = Modifier.constrainAs(card) {
-                top.linkTo(profileImage.bottom, margin = 22.dp)
+            modifier = Modifier.constrainAs(todayProgressCard) {
+                top.linkTo(profileAvatar.bottom, margin = 22.dp)
                 start.linkTo(parent.start)
                 end.linkTo(parent.end)
             }.padding(horizontal = 25.dp).fillMaxWidth().height(156.dp), navController
         )
 
-        Text("In Progress", modifier = Modifier.constrainAs(text2) {
-            top.linkTo(card.bottom, margin = 22.dp)
+        Text("In Progress", modifier = Modifier.constrainAs(inProgressTitle) {
+            top.linkTo(todayProgressCard.bottom, margin = 22.dp)
             start.linkTo(parent.start, margin = 25.dp)
         }, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
             fontSize = 19.sp, color = Color(0xFF24252C)
         )
 
-        Box(modifier = Modifier.constrainAs(circle1) {
-            top.linkTo(text2.top)
-            start.linkTo(text2.end, margin = 5.dp)
-            bottom.linkTo(text2.bottom)
+        Box(modifier = Modifier.constrainAs(inProgressCountBadge) {
+            top.linkTo(inProgressTitle.top)
+            start.linkTo(inProgressTitle.end, margin = 5.dp)
+            bottom.linkTo(inProgressTitle.bottom)
         }.shadow(
             elevation = 12.dp,
             shape = RoundedCornerShape(19.dp),
@@ -377,27 +378,27 @@ fun HomeScreen(navController: NavController) {
             )
         }
 
-        InProgressTasks(modifier = Modifier.constrainAs(lazyRow) {
-            top.linkTo(text2.bottom, margin = 15.dp)
+        InProgressTasks(modifier = Modifier.constrainAs(inProgressList) {
+            top.linkTo(inProgressTitle.bottom, margin = 15.dp)
             start.linkTo(parent.start)
-        }, modifier1 = Modifier.constrainAs(defaultCard) {
-            top.linkTo(text2.bottom, margin = 15.dp)
+        }, modifier1 = Modifier.constrainAs(emptyInProgressCard) {
+            top.linkTo(inProgressTitle.bottom, margin = 15.dp)
             start.linkTo(parent.start, margin = 25.dp)
         }, navController) { count ->
             inProgressTasks = count
         }
         
-        Text("Task Groups", modifier = Modifier.constrainAs(text3) {
-            top.linkTo(text2.bottom, margin = 145.dp)
+        Text("Task Groups", modifier = Modifier.constrainAs(taskGroupTitle) {
+            top.linkTo(inProgressTitle.bottom, margin = 145.dp)
             start.linkTo(parent.start, margin = 25.dp)
         }, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
             fontSize = 19.sp, color = Color(0xFF24252C)
         )
 
-        Box(modifier = Modifier.constrainAs(circle2) {
-            top.linkTo(text3.top)
-            start.linkTo(text3.end, margin = 5.dp)
-            bottom.linkTo(text3.bottom)
+        Box(modifier = Modifier.constrainAs(taskGroupCountBadge) {
+            top.linkTo(taskGroupTitle.top)
+            start.linkTo(taskGroupTitle.end, margin = 5.dp)
+            bottom.linkTo(taskGroupTitle.bottom)
         }.shadow(
             elevation = 12.dp,
             shape = RoundedCornerShape(19.dp),
@@ -414,8 +415,8 @@ fun HomeScreen(navController: NavController) {
                 fontSize = 11.sp, color = Color(0xFF5F33E1))
         }
         
-        TaskGroups(modifier = Modifier.constrainAs(lazyColumn) {
-            top.linkTo(text3.bottom, margin = 12.dp)
+        TaskGroups(modifier = Modifier.constrainAs(taskGroupList) {
+            top.linkTo(taskGroupTitle.bottom, margin = 12.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
             bottom.linkTo(parent.bottom, margin = (-15).dp)
@@ -477,15 +478,15 @@ private fun TodayTaskProgress(modifier: Modifier, navController: NavController) 
     ), modifier = modifier, shape = RoundedCornerShape(24.dp)
     ) {
         ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-            val (text1,button,progress) = createRefs()
+            val (todayMessageText,viewTaskButton,progressIndicator) = createRefs()
 
-            Text(todayMessage, modifier = Modifier.constrainAs(text1) {
+            Text(todayMessage, modifier = Modifier.constrainAs(todayMessageText) {
                 top.linkTo(parent.top, margin = 18.dp)
                 start.linkTo(parent.start, margin = 25.dp)
             }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                 fontSize = 14.sp, color = Color(0xFFFFFFFF))
 
-            Button(modifier = Modifier.constrainAs(button) {
+            Button(modifier = Modifier.constrainAs(viewTaskButton) {
                 start.linkTo(parent.start, margin = 25.dp)
                 bottom.linkTo(parent.bottom, margin = 22.dp)
             }.size(120.dp,42.dp),
@@ -501,7 +502,7 @@ private fun TodayTaskProgress(modifier: Modifier, navController: NavController) 
 
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier.constrainAs(progress) {
+                modifier = Modifier.constrainAs(progressIndicator) {
                     top.linkTo(parent.top)
                     bottom.linkTo(parent.bottom)
                     end.linkTo(parent.end, margin = 40.dp)
@@ -613,17 +614,17 @@ private fun InProgressTasks(
         ), onClick = { }, shape = RoundedCornerShape(19.dp))
         {
             ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-                val(text1,text2,progressBar) = createRefs()
+                val (emptyStateTitle,emptyStateSubtitle,emptyProgressBar) = createRefs()
 
-                Text("No tasks in progress", modifier = Modifier.constrainAs(text1) {
+                Text("No tasks in progress", modifier = Modifier.constrainAs(emptyStateTitle) {
                     top.linkTo(parent.top, margin = 16.dp)
                     start.linkTo(parent.start)
                 }.fillMaxWidth().padding(start = 16.dp, end = 42.dp), fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                     fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 1
                 )
 
-                Text("Add a new task to start tracking", modifier = Modifier.constrainAs(text2) {
-                    top.linkTo(text1.bottom, margin = 10.dp)
+                Text("Add a new task to start tracking", modifier = Modifier.constrainAs(emptyStateSubtitle) {
+                    top.linkTo(emptyStateTitle.bottom, margin = 10.dp)
                     start.linkTo(parent.start)
                 }.fillMaxWidth().padding(start = 16.dp, end = 25.dp), fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                     fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF000000), maxLines = 2
@@ -639,8 +640,8 @@ private fun InProgressTasks(
                 )
 
                 Box(
-                    modifier = Modifier.constrainAs(progressBar) {
-                        top.linkTo(text2.bottom)
+                    modifier = Modifier.constrainAs(emptyProgressBar) {
+                        top.linkTo(emptyStateSubtitle.bottom)
                         bottom.linkTo(parent.bottom)
                         start.linkTo(parent.start)
                         end.linkTo(parent.end)
@@ -694,17 +695,17 @@ private fun InProgressTasks(
                     ,shape = RoundedCornerShape(19.dp))
                 {
                     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-                        val(text1,text2,progressBar,boxShape) = createRefs()
+                        val (taskGroupNameText,taskNameText,taskProgressBar,taskIconContainer) = createRefs()
 
-                        Text(task.taskGroupName, modifier = Modifier.constrainAs(text1) {
+                        Text(task.taskGroupName, modifier = Modifier.constrainAs(taskGroupNameText) {
                             top.linkTo(parent.top, margin = 16.dp)
                             start.linkTo(parent.start)
                         }.fillMaxWidth().padding(start = 16.dp, end = 42.dp), fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
 
-                        Text(task.taskName, modifier = Modifier.constrainAs(text2) {
-                            top.linkTo(text1.bottom, margin = 10.dp)
+                        Text(task.taskName, modifier = Modifier.constrainAs(taskNameText) {
+                            top.linkTo(taskGroupNameText.bottom, margin = 10.dp)
                             start.linkTo(parent.start)
                         }.fillMaxWidth().padding(start = 16.dp, end = 25.dp), fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF000000), maxLines = 2, overflow = TextOverflow.Ellipsis
@@ -720,8 +721,8 @@ private fun InProgressTasks(
                         )
 
                         Box(
-                            modifier = Modifier.constrainAs(progressBar) {
-                                top.linkTo(text2.bottom)
+                            modifier = Modifier.constrainAs(taskProgressBar) {
+                                top.linkTo(taskNameText.bottom)
                                 bottom.linkTo(parent.bottom)
                                 start.linkTo(parent.start)
                                 end.linkTo(parent.end)
@@ -745,7 +746,7 @@ private fun InProgressTasks(
                             )
                         }
 
-                        Box(modifier = Modifier.constrainAs(boxShape) {
+                        Box(modifier = Modifier.constrainAs(taskIconContainer) {
                             top.linkTo(parent.top, margin = 14.dp)
                             end.linkTo(parent.end, margin = 14.dp)
                         }.size(24.dp).background(Color(task.iconBg.toULong()),
@@ -816,9 +817,9 @@ private fun TaskGroups(modifier: Modifier, navController: NavController) {
                 shape = RoundedCornerShape(15.dp)) {
                 ConstraintLayout(modifier = Modifier.fillMaxSize()) {
 
-                    val (boxShape,text1,text2,progress) = createRefs()
+                    val (taskGroupIconContainer,taskGroupNameText,taskCountText,taskGroupProgress) = createRefs()
 
-                    Box(modifier = Modifier.constrainAs(boxShape) {
+                    Box(modifier = Modifier.constrainAs(taskGroupIconContainer) {
                         top.linkTo(parent.top)
                         start.linkTo(parent.start, margin = 15.dp)
                         bottom.linkTo(parent.bottom)
@@ -829,23 +830,23 @@ private fun TaskGroups(modifier: Modifier, navController: NavController) {
                         Image(modifier = Modifier.size(20.dp), painter = painterResource(taskGroupIcon), contentDescription = "briefcase")
                     }
 
-                    Text(taskGroup, modifier = Modifier.constrainAs(text1) {
+                    Text(taskGroup, modifier = Modifier.constrainAs(taskGroupNameText) {
                         top.linkTo(parent.top, margin = 16.dp)
-                        start.linkTo(boxShape.end, margin = 12.dp)
+                        start.linkTo(taskGroupIconContainer.end, margin = 12.dp)
                     }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                         fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF24252C)
                     )
 
-                    Text("$totalTask Tasks", modifier = Modifier.constrainAs(text2) {
-                        start.linkTo(text1.start)
-                        top.linkTo(text1.bottom, margin = 5.dp)
+                    Text("$totalTask Tasks", modifier = Modifier.constrainAs(taskCountText) {
+                        start.linkTo(taskGroupNameText.start)
+                        top.linkTo(taskGroupNameText.bottom, margin = 5.dp)
                     }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                         fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C)
                     )
 
                     Box(
                         contentAlignment = Alignment.Center,
-                        modifier = Modifier.constrainAs(progress) {
+                        modifier = Modifier.constrainAs(taskGroupProgress) {
                             top.linkTo(parent.top)
                             bottom.linkTo(parent.bottom)
                             end.linkTo(parent.end, margin = 25.dp)

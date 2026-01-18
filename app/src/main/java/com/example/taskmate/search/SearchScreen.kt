@@ -169,9 +169,9 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
     val keyboardController = LocalSoftwareKeyboardController.current
 
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-        val(text1,text2,box,icon,search,searchResult) = createRefs()
+        val(titleText, emptyStateText, recentSearchContainer, emptyStateIcon, searchBar, searchResultsList) = createRefs()
 
-        Text("Search", modifier = Modifier.constrainAs(text1) {
+        Text("Search", modifier = Modifier.constrainAs(titleText) {
             top.linkTo(parent.top, margin = 15.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
@@ -180,8 +180,8 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
         )
 
         SearchBar(fonts,
-            modifier = Modifier.constrainAs(search) {
-                top.linkTo(text1.bottom, margin = 20.dp)
+            modifier = Modifier.constrainAs(searchBar) {
+                top.linkTo(titleText.bottom, margin = 20.dp)
                 start.linkTo(parent.start)
                 end.linkTo(parent.end)
             }.fillMaxWidth().padding(horizontal = 20.dp).focusRequester(focusRequester),
@@ -192,8 +192,8 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
         )
 
         if (!showSearchResults && !showEmptyState) {
-            Box(modifier = Modifier.constrainAs(box) {
-                top.linkTo(search.bottom, margin = 20.dp)
+            Box(modifier = Modifier.constrainAs(recentSearchContainer) {
+                top.linkTo(searchBar.bottom, margin = 20.dp)
                 start.linkTo(parent.start)
                 end.linkTo(parent.end)
             }.padding(horizontal = 20.dp).fillMaxWidth().shadow(
@@ -206,9 +206,9 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
                 contentAlignment = Alignment.Center
             ) {
                 ConstraintLayout(modifier = Modifier.fillMaxWidth()) {
-                    val(text3,text4,recentSearch) = createRefs()
+                    val(recentSearchTitle, clearRecentButton, recentSearchList) = createRefs()
 
-                    Text("Recent Search", modifier = Modifier.constrainAs(text3) {
+                    Text("Recent Search", modifier = Modifier.constrainAs(recentSearchTitle) {
                         top.linkTo(parent.top, margin = 15.dp)
                         start.linkTo(parent.start, margin = 15.dp) }.padding(bottom = if (showRecentSearches) 0.dp else 15.dp)
                         , fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts,
@@ -216,8 +216,8 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
                         color = Color(0xFF24252C)
                     )
 
-                    Box(modifier = Modifier.constrainAs(text4) {
-                        top.linkTo(search.bottom, margin = 15.dp)
+                    Box(modifier = Modifier.constrainAs(clearRecentButton) {
+                        top.linkTo(searchBar.bottom, margin = 15.dp)
                         end.linkTo(parent.end, margin = 15.dp)
                     }.size(72.dp,20.dp).clip(RoundedCornerShape(6.dp))
                         .clickable {
@@ -246,17 +246,17 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
                     }
 
                     if (showRecentSearches) {
-                        LazyColumn(modifier = Modifier.constrainAs(recentSearch) {
-                            top.linkTo(text3.bottom, margin = 15.dp)
+                        LazyColumn(modifier = Modifier.constrainAs(recentSearchList) {
+                            top.linkTo(recentSearchTitle.bottom, margin = 15.dp)
                             start.linkTo(parent.start)
                             end.linkTo(parent.end)
                         },contentPadding = PaddingValues(bottom = 15.dp), verticalArrangement = Arrangement.spacedBy(16.dp))
                         {
                             items(recentSearches.value) { query ->
                                 ConstraintLayout(modifier = Modifier.fillMaxWidth()) {
-                                    val(text1,clearIcon) = createRefs()
+                                    val(recentQueryText, removeQueryIcon) = createRefs()
 
-                                    Text(query, modifier = Modifier.constrainAs(text1) {
+                                    Text(query, modifier = Modifier.constrainAs(recentQueryText) {
                                         top.linkTo(parent.top)
                                         bottom.linkTo(parent.bottom)
                                         start.linkTo(parent.start, margin = 15.dp) }
@@ -275,7 +275,7 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
                                         painter = painterResource(R.drawable.remove_icon),
                                         contentDescription = "clear_icon",
                                         tint = Color(0xFF5F33E1),
-                                        modifier = Modifier.constrainAs(clearIcon) {
+                                        modifier = Modifier.constrainAs(removeQueryIcon) {
                                             top.linkTo(parent.top)
                                             bottom.linkTo(parent.bottom)
                                             end.linkTo(parent.end, margin = 15.dp)
@@ -298,7 +298,7 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
                 painter = painterResource(R.drawable.search_empty),
                 contentDescription = "empty_notification",
                 tint = Color(0xFF5F33E1),
-                modifier = Modifier.constrainAs(icon) {
+                modifier = Modifier.constrainAs(emptyStateIcon) {
                         top.linkTo(parent.top)
                         bottom.linkTo(parent.bottom)
                         start.linkTo(parent.start)
@@ -308,8 +308,8 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
 
             Text(
                 "No results found",
-                modifier = Modifier.constrainAs(text2) {
-                    top.linkTo(icon.bottom)
+                modifier = Modifier.constrainAs(emptyStateText) {
+                    top.linkTo(emptyStateIcon.bottom)
                     start.linkTo(parent.start)
                     end.linkTo(parent.end)
                 },
@@ -321,8 +321,8 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
         }
 
         if (showSearchResults) {
-            LazyColumn(modifier = Modifier.constrainAs(searchResult) {
-                top.linkTo(search.bottom, margin = 25.dp)
+            LazyColumn(modifier = Modifier.constrainAs(searchResultsList) {
+                top.linkTo(searchBar.bottom, margin = 25.dp)
                 start.linkTo(parent.start)
                 end.linkTo(parent.end)
                 bottom.linkTo(parent.bottom, margin = (-15).dp)
@@ -342,17 +342,18 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
                     ), onClick = { navController.navigate("update_task/${task.id}/${task.taskGroup}") },
                         shape = RoundedCornerShape(15.dp)) {
                         ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-                            val(text1,text2,clock,timeText,boxShape,boxShape2) = createRefs()
+                            val(taskGroupNameText,taskNameText,taskTimeIcon,taskTimeText,
+                                taskIconBox,taskStatusCard) = createRefs()
 
-                            Text(task.taskGroupName, modifier = Modifier.constrainAs(text1) {
+                            Text(task.taskGroupName, modifier = Modifier.constrainAs(taskGroupNameText) {
                                 top.linkTo(parent.top, margin = 5.dp)
-                                bottom.linkTo(text2.top)
+                                bottom.linkTo(taskNameText.top)
                                 start.linkTo(parent.start)
                             }.fillMaxWidth().padding(start = 14.dp, end = 65.dp), fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                                 fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 1
                             )
 
-                            Text(task.taskName, modifier = Modifier.constrainAs(text2) {
+                            Text(task.taskName, modifier = Modifier.constrainAs(taskNameText) {
                                 top.linkTo(parent.top)
                                 bottom.linkTo(parent.bottom)
                                 start.linkTo(parent.start)
@@ -360,20 +361,20 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
                                 fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF24252C), maxLines = 1
                             )
 
-                            Image(modifier = Modifier.constrainAs(clock) {
+                            Image(modifier = Modifier.constrainAs(taskTimeIcon) {
                                 bottom.linkTo(parent.bottom, margin = 14.dp)
                                 start.linkTo(parent.start, margin = 15.dp)
                             }.size(14.dp), painter = painterResource(R.drawable.clock), contentDescription = "clock Icon")
 
-                            Text("12:00", modifier = Modifier.constrainAs(timeText) {
-                                top.linkTo(clock.top)
-                                start.linkTo(clock.end, margin = 2.dp)
-                                bottom.linkTo(clock.bottom)
+                            Text("12:00", modifier = Modifier.constrainAs(taskTimeText) {
+                                top.linkTo(taskTimeIcon.top)
+                                start.linkTo(taskTimeIcon.end, margin = 2.dp)
+                                bottom.linkTo(taskTimeIcon.bottom)
                             }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                                 fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFFAB94FF), maxLines = 1
                             )
 
-                            Box(modifier = Modifier.constrainAs(boxShape) {
+                            Box(modifier = Modifier.constrainAs(taskIconBox) {
                                 top.linkTo(parent.top, margin = 15.dp)
                                 end.linkTo(parent.end, margin = 15.dp)
                             }.size(34.dp).background(Color(task.iconBg.toULong()),
@@ -392,7 +393,7 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
                                     "To Do" -> Color(0xFFE3F2FF)
                                     else -> Color(0xFFEDE8FF)
                                 }
-                            ), modifier = Modifier.constrainAs(boxShape2) {
+                            ), modifier = Modifier.constrainAs(taskStatusCard) {
                                 bottom.linkTo(parent.bottom, margin = 15.dp)
                                 end.linkTo(parent.end, margin = 15.dp)
                             }.shadow( elevation = 12.dp,
