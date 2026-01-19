@@ -29,6 +29,7 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -55,14 +56,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
-import androidx.core.content.edit
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
 import com.example.taskmate.R
 import com.example.taskmate.navigation.BottomNavRoute
+import com.example.taskmate.notification.notifyOverdueTasks
+import com.example.taskmate.profile.UserPrefs
+import com.example.taskmate.profile.UserProfile
 import com.example.taskmate.updatetask.formatter
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -93,236 +101,141 @@ object TaskGroup {
     const val DAILY_STUDY = "Daily Study"
 }
 
+val Context.taskDataStore by preferencesDataStore(
+    name = "task_datastore"
+)
+
+object TaskKeys {
+    val WORK = stringPreferencesKey("work_tasks")
+    val PERSONAL = stringPreferencesKey("personal_tasks")
+    val STUDY = stringPreferencesKey("study_tasks")
+    val DAILY_STUDY = stringPreferencesKey("daily_study_tasks")
+}
+
 object TaskPrefs {
-    private const val PREF_NAME = "task_prefs"
-    private const val KEY_WORK_TASKS = "work_tasks"
-    private const val KEY_PERSONAL_TASKS = "personal_tasks"
-    private const val KEY_STUDY_TASKS = "study_tasks"
-    private const val KEY_DAILY_STUDY_TASKS = "daily_study_tasks"
 
-    fun saveWorkTasks(context: Context, task: Tasks) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val gson = Gson()
+    private val gson = Gson()
+    private val type = object : TypeToken<MutableList<Tasks>>() {}.type
 
-        val existingJson = prefs.getString(KEY_WORK_TASKS, null)
-        val type = object : TypeToken<MutableList<Tasks>>() {}.type
+    private fun parse(json: String?): MutableList<Tasks> =
+        if (json.isNullOrEmpty()) mutableListOf()
+        else gson.fromJson(json, type)
 
-        val taskList: MutableList<Tasks> =
-            if (existingJson != null)
-                gson.fromJson(existingJson, type)
-            else
-                mutableListOf()
-
-        val index = taskList.indexOfFirst { it.id == task.id }
-
-        if (index != -1) {
-            // ✅ UPDATE
-            taskList[index] = task
-        } else {
-            // ➕ ADD
-            taskList.add(task)
-        }
-
-        prefs.edit {
-            putString(KEY_WORK_TASKS, gson.toJson(taskList))
-        }
+    private fun upsert(list: MutableList<Tasks>, task: Tasks) {
+        val index = list.indexOfFirst { it.id == task.id }
+        if (index != -1) list[index] = task else list.add(task)
     }
-    fun removeWorkTask(context: Context, taskId: String) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val gson = Gson()
 
-        val json = prefs.getString(KEY_WORK_TASKS, null) ?: return
-        val type = object : TypeToken<MutableList<Tasks>>() {}.type
-
-        val list: MutableList<Tasks> = gson.fromJson(json, type)
-        list.removeAll { it.id == taskId }
-
-        prefs.edit {
-            putString(KEY_WORK_TASKS, gson.toJson(list))
-        }
-    }
-    fun loadWorkTasks(context: Context): List<Tasks> {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val json = prefs.getString(KEY_WORK_TASKS, null) ?: return emptyList()
-
-        val type = object : TypeToken<List<Tasks>>() {}.type
-        return Gson().fromJson(json, type)
-    }
-    fun clearWorkTasks(context: Context) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        prefs.edit {
-            remove(KEY_WORK_TASKS)
+    suspend fun saveWorkTask(context: Context, task: Tasks) {
+        context.taskDataStore.edit { prefs ->
+            val list = parse(prefs[TaskKeys.WORK])
+            upsert(list, task)
+            prefs[TaskKeys.WORK] = gson.toJson(list)
         }
     }
 
-    fun savePersonalTasks(context: Context, task: Tasks) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val gson = Gson()
-
-        val existingJson = prefs.getString(KEY_PERSONAL_TASKS, null)
-
-        val type = object : TypeToken<MutableList<Tasks>>() {}.type
-        val taskList: MutableList<Tasks> =
-            if (existingJson != null)
-                gson.fromJson(existingJson, type)
-            else
-                mutableListOf()
-
-        val index = taskList.indexOfFirst { it.id == task.id }
-
-        if (index != -1) {
-            // ✅ UPDATE
-            taskList[index] = task
-        } else {
-            // ➕ ADD
-            taskList.add(task)
-        }
-
-        prefs.edit {
-            putString(KEY_PERSONAL_TASKS, gson.toJson(taskList))
-        }
-    }
-    fun removePersonalTasks(context: Context, taskId: String) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val gson = Gson()
-
-        val json = prefs.getString(KEY_PERSONAL_TASKS, null) ?: return
-        val type = object : TypeToken<MutableList<Tasks>>() {}.type
-
-        val list: MutableList<Tasks> = gson.fromJson(json, type)
-        list.removeAll { it.id == taskId }
-
-        prefs.edit {
-            putString(KEY_PERSONAL_TASKS, gson.toJson(list))
-        }
-    }
-    fun loadPersonalTasks(context: Context): List<Tasks> {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val json = prefs.getString(KEY_PERSONAL_TASKS, null) ?: return emptyList()
-
-        val type = object : TypeToken<List<Tasks>>() {}.type
-        return Gson().fromJson(json, type)
-    }
-    fun clearPersonalTasks(context: Context) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        prefs.edit {
-            remove(KEY_PERSONAL_TASKS)
+    suspend fun removeWorkTask(context: Context, taskId: String) {
+        context.taskDataStore.edit { prefs ->
+            val list = parse(prefs[TaskKeys.WORK])
+            list.removeAll { it.id == taskId }
+            prefs[TaskKeys.WORK] = gson.toJson(list)
         }
     }
 
-    fun saveStudyTasks(context: Context, task: Tasks) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val gson = Gson()
-
-        val existingJson = prefs.getString(KEY_STUDY_TASKS, null)
-
-        val type = object : TypeToken<MutableList<Tasks>>() {}.type
-        val taskList: MutableList<Tasks> =
-            if (existingJson != null)
-                gson.fromJson(existingJson, type)
-            else
-                mutableListOf()
-
-        val index = taskList.indexOfFirst { it.id == task.id }
-
-        if (index != -1) {
-            // ✅ UPDATE
-            taskList[index] = task
-        } else {
-            // ➕ ADD
-            taskList.add(task)
+    fun loadWorkTasks(context: Context) =
+        context.taskDataStore.data.map { prefs ->
+            parse(prefs[TaskKeys.WORK])
         }
 
-        prefs.edit {
-            putString(KEY_STUDY_TASKS, gson.toJson(taskList))
-        }
+    suspend fun clearWorkTasks(context: Context) {
+        context.taskDataStore.edit { it.remove(TaskKeys.WORK) }
     }
-    fun removeStudyTasks(context: Context, taskId: String) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val gson = Gson()
 
-        val json = prefs.getString(KEY_STUDY_TASKS, null) ?: return
-        val type = object : TypeToken<MutableList<Tasks>>() {}.type
-
-        val list: MutableList<Tasks> = gson.fromJson(json, type)
-        list.removeAll { it.id == taskId }
-
-        prefs.edit {
-            putString(KEY_STUDY_TASKS, gson.toJson(list))
-        }
-    }
-    fun loadStudyTasks(context: Context): List<Tasks> {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val json = prefs.getString(KEY_STUDY_TASKS, null) ?: return emptyList()
-
-        val type = object : TypeToken<List<Tasks>>() {}.type
-        return Gson().fromJson(json, type)
-    }
-    fun clearStudyTasks(context: Context) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        prefs.edit {
-            remove(KEY_STUDY_TASKS)
+    suspend fun savePersonalTask(context: Context, task: Tasks) {
+        context.taskDataStore.edit { prefs ->
+            val list = parse(prefs[TaskKeys.PERSONAL])
+            upsert(list, task)
+            prefs[TaskKeys.PERSONAL] = gson.toJson(list)
         }
     }
 
-    fun saveDailyStudyTasks(context: Context, task: Tasks) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val gson = Gson()
-
-        val existingJson = prefs.getString(KEY_DAILY_STUDY_TASKS, null)
-
-        val type = object : TypeToken<MutableList<Tasks>>() {}.type
-        val taskList: MutableList<Tasks> =
-            if (existingJson != null)
-                gson.fromJson(existingJson, type)
-            else
-                mutableListOf()
-
-        val index = taskList.indexOfFirst { it.id == task.id }
-
-        if (index != -1) {
-            // ✅ UPDATE
-            taskList[index] = task
-        } else {
-            // ➕ ADD
-            taskList.add(task)
-        }
-
-        prefs.edit {
-            putString(KEY_DAILY_STUDY_TASKS, gson.toJson(taskList))
+    suspend fun removePersonalTask(context: Context, taskId: String) {
+        context.taskDataStore.edit { prefs ->
+            val list = parse(prefs[TaskKeys.PERSONAL])
+            list.removeAll { it.id == taskId }
+            prefs[TaskKeys.PERSONAL] = gson.toJson(list)
         }
     }
-    fun removeDailyStudyTasks(context: Context, taskId: String) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val gson = Gson()
 
-        val json = prefs.getString(KEY_DAILY_STUDY_TASKS, null) ?: return
-        val type = object : TypeToken<MutableList<Tasks>>() {}.type
+    fun loadPersonalTasks(context: Context) =
+        context.taskDataStore.data.map {
+            parse(it[TaskKeys.PERSONAL])
+        }
 
-        val list: MutableList<Tasks> = gson.fromJson(json, type)
-        list.removeAll { it.id == taskId }
+    suspend fun clearPersonalTasks(context: Context) {
+        context.taskDataStore.edit { it.remove(TaskKeys.PERSONAL) }
+    }
 
-        prefs.edit {
-            putString(KEY_DAILY_STUDY_TASKS, gson.toJson(list))
+    suspend fun saveStudyTask(context: Context, task: Tasks) {
+        context.taskDataStore.edit { prefs ->
+            val list = parse(prefs[TaskKeys.STUDY])
+            upsert(list, task)
+            prefs[TaskKeys.STUDY] = gson.toJson(list)
         }
     }
-    fun loadDailyStudyTasks(context: Context): List<Tasks> {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val json = prefs.getString(KEY_DAILY_STUDY_TASKS, null) ?: return emptyList()
 
-        val type = object : TypeToken<List<Tasks>>() {}.type
-        return Gson().fromJson(json, type)
-    }
-    fun clearDailyStudyTasks(context: Context) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        prefs.edit {
-            remove(KEY_DAILY_STUDY_TASKS)
+    suspend fun removeStudyTask(context: Context, taskId: String) {
+        context.taskDataStore.edit { prefs ->
+            val list = parse(prefs[TaskKeys.STUDY])
+            list.removeAll { it.id == taskId }
+            prefs[TaskKeys.STUDY] = gson.toJson(list)
         }
+    }
+
+    fun loadStudyTasks(context: Context) =
+        context.taskDataStore.data.map {
+            parse(it[TaskKeys.STUDY])
+        }
+
+    suspend fun clearStudyTasks(context: Context) {
+        context.taskDataStore.edit { it.remove(TaskKeys.STUDY) }
+    }
+
+    suspend fun saveDailyStudyTask(context: Context, task: Tasks) {
+        context.taskDataStore.edit { prefs ->
+            val list = parse(prefs[TaskKeys.DAILY_STUDY])
+            upsert(list, task)
+            prefs[TaskKeys.DAILY_STUDY] = gson.toJson(list)
+        }
+    }
+
+    suspend fun removeDailyStudyTask(context: Context, taskId: String) {
+        context.taskDataStore.edit { prefs ->
+            val list = parse(prefs[TaskKeys.DAILY_STUDY])
+            list.removeAll { it.id == taskId }
+            prefs[TaskKeys.DAILY_STUDY] = gson.toJson(list)
+        }
+    }
+
+    fun loadDailyStudyTasks(context: Context) =
+        context.taskDataStore.data.map {
+            parse(it[TaskKeys.DAILY_STUDY])
+        }
+
+    suspend fun clearDailyStudyTasks(context: Context) {
+        context.taskDataStore.edit { it.remove(TaskKeys.DAILY_STUDY) }
     }
 }
+
 @Composable
 fun HomeScreen(navController: NavController) {
+    val context = LocalContext.current
     var inProgressTasks by remember { mutableStateOf("0") }
+    var savedUser by remember { mutableStateOf<UserProfile?>(null) }
+
+    LaunchedEffect(Unit) {
+        savedUser = UserPrefs.getUser(context)
+    }
 
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
         val (profileAvatar,greetingText,userNameText,todayProgressCard,inProgressTitle,
@@ -339,7 +252,7 @@ fun HomeScreen(navController: NavController) {
             }, modifier3 = Modifier.constrainAs(userNameText) {
                 start.linkTo(profileAvatar.end, margin = 15.dp)
                 top.linkTo(greetingText.bottom)
-            }, navController
+            }, navController, savedUser
         )
 
         TodayTaskProgress(
@@ -426,17 +339,23 @@ fun HomeScreen(navController: NavController) {
 }
 
 @Composable
-private fun ProfileView(modifier: Modifier, modifier2: Modifier, modifier3: Modifier, navController: NavController) {
-    Image(painter = painterResource(R.drawable.picofme), contentDescription = "profile Image",
+private fun ProfileView(modifier: Modifier,modifier2: Modifier,modifier3: Modifier,
+    navController: NavController,savedUser: UserProfile?
+) {
+    AsyncImage(
+        model = savedUser?.profileImageUri?.ifEmpty { R.drawable.default_profile },
+        contentDescription = "Profile Image",
         contentScale = ContentScale.Crop,
-        modifier = modifier.clickable { navController.navigate(BottomNavRoute.Profile.route) }
+        modifier = modifier.clickable { navController.navigate(BottomNavRoute.Profile.route) },
+        placeholder = painterResource(R.drawable.default_profile),
+        error = painterResource(R.drawable.default_profile)
     )
 
     Text("Hello!", modifier = modifier2, fontFamily = fonts, fontWeight = FontWeight.Normal, fontStyle = FontStyle.Normal,
         fontSize = 16.sp, lineHeight = 19.sp, color = Color(0xFF24252C)
     )
 
-    Text("Harsh Suthar", modifier = modifier3, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
+    Text(text = savedUser?.name ?: "Your Name", modifier = modifier3, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
         fontSize = 18.sp, lineHeight = 21.sp, color = Color(0xFF24252C)
     )
 }
@@ -447,14 +366,15 @@ private fun TodayTaskProgress(modifier: Modifier, navController: NavController) 
     val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
     val today = LocalDate.now()
 
-    val allTasks = remember {
-        listOf(
-            TaskPrefs.loadWorkTasks(context),
-            TaskPrefs.loadPersonalTasks(context),
-            TaskPrefs.loadStudyTasks(context),
-            TaskPrefs.loadDailyStudyTasks(context)
-        ).flatten()
+    val work by TaskPrefs.loadWorkTasks(context).collectAsState(emptyList())
+    val personal by TaskPrefs.loadPersonalTasks(context).collectAsState(emptyList())
+    val study by TaskPrefs.loadStudyTasks(context).collectAsState(emptyList())
+    val daily by TaskPrefs.loadDailyStudyTasks(context).collectAsState(emptyList())
+
+    val allTasks = remember(work, personal, study, daily) {
+        work + personal + study + daily
     }
+    notifyOverdueTasks(context, allTasks)
 
     // Filter today tasks
     val todayTasks = remember(allTasks) {
@@ -580,22 +500,42 @@ private fun InProgressTasks(
     navController: NavController,
     inProgressTask: (String) -> Unit
 ) {
-    val workTasksList = TaskPrefs.loadWorkTasks(LocalContext.current)
-    val personalTasksList = TaskPrefs.loadPersonalTasks(LocalContext.current)
-    val studyTasksList = TaskPrefs.loadStudyTasks(LocalContext.current)
-    val dailyStudyTasksList = TaskPrefs.loadDailyStudyTasks(LocalContext.current)
+    val context = LocalContext.current
+
+    val workTasksList by TaskPrefs
+        .loadWorkTasks(context)
+        .collectAsState(initial = emptyList())
+
+    val personalTasksList by TaskPrefs
+        .loadPersonalTasks(context)
+        .collectAsState(initial = emptyList())
+
+    val studyTasksList by TaskPrefs
+        .loadStudyTasks(context)
+        .collectAsState(initial = emptyList())
+
+    val dailyStudyTasksList by TaskPrefs
+        .loadDailyStudyTasks(context)
+        .collectAsState(initial = emptyList())
 
     val filteredWorkTasks = filterTasksAboveTenPercent(workTasksList)
     val filteredPersonalTasks = filterTasksAboveTenPercent(personalTasksList)
     val filteredStudyTasks = filterTasksAboveTenPercent(studyTasksList)
     val filteredDailyStudyTasks = filterTasksAboveTenPercent(dailyStudyTasksList)
 
-    val allFilteredTasks = listOf(
+    val allFilteredTasks = remember(
         filteredWorkTasks,
         filteredPersonalTasks,
         filteredStudyTasks,
         filteredDailyStudyTasks
-    ).flatten()
+    ) {
+        listOf(
+            filteredWorkTasks,
+            filteredPersonalTasks,
+            filteredStudyTasks,
+            filteredDailyStudyTasks
+        ).flatten()
+    }
 
     LaunchedEffect(allFilteredTasks.size) {
         inProgressTask(allFilteredTasks.size.toString())
@@ -770,10 +710,23 @@ private fun filterTasksAboveTenPercent(tasks: List<Tasks>): List<Tasks> {
 private fun TaskGroups(modifier: Modifier, navController: NavController) {
     val progressList = remember { mutableStateListOf(0f, 0f, 0f, 0f) }
 
-    val workTasksList = TaskPrefs.loadWorkTasks(LocalContext.current)
-    val personalTasksList = TaskPrefs.loadPersonalTasks(LocalContext.current)
-    val studyTasksList = TaskPrefs.loadStudyTasks(LocalContext.current)
-    val dailyStudyTasksList = TaskPrefs.loadDailyStudyTasks(LocalContext.current)
+    val context = LocalContext.current
+
+    val workTasksList by TaskPrefs
+        .loadWorkTasks(context)
+        .collectAsState(initial = emptyList())
+
+    val personalTasksList by TaskPrefs
+        .loadPersonalTasks(context)
+        .collectAsState(initial = emptyList())
+
+    val studyTasksList by TaskPrefs
+        .loadStudyTasks(context)
+        .collectAsState(initial = emptyList())
+
+    val dailyStudyTasksList by TaskPrefs
+        .loadDailyStudyTasks(context)
+        .collectAsState(initial = emptyList())
 
     val taskGroups = listOf(
         TaskGroup.WORK,
@@ -893,7 +846,8 @@ private fun TaskGroups(modifier: Modifier, navController: NavController) {
         }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(workTasksList, personalTasksList, studyTasksList, dailyStudyTasksList
+    ) {
         progressList[0] = calculateGroupProgress(workTasksList, formatter)
         progressList[1] = calculateGroupProgress(personalTasksList, formatter)
         progressList[2] = calculateGroupProgress(studyTasksList, formatter)

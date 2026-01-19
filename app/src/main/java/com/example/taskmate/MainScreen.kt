@@ -55,6 +55,7 @@ import com.example.taskmate.calendar.CalendarScreen
 import com.example.taskmate.home.HomeScreen
 import com.example.taskmate.home.fonts
 import com.example.taskmate.navigation.BottomNavRoute
+import com.example.taskmate.notification.NotificationHelper
 import com.example.taskmate.notification.NotificationScreen
 import com.example.taskmate.profile.ProfileScreen
 import com.example.taskmate.search.SearchScreen
@@ -71,6 +72,8 @@ class MainScreen : ComponentActivity() {
                 Main_Screen()
             }
         }
+
+        NotificationHelper.createChannel(this)
     }
 }
 

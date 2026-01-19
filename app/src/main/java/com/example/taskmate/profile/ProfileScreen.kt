@@ -38,6 +38,7 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,11 +61,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
-import androidx.core.content.edit
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import coil.compose.AsyncImage
 import com.example.taskmate.R
 import com.example.taskmate.home.fonts
+import com.example.taskmate.search.recentSearchDataStore
 import com.google.gson.Gson
+import com.yalantis.ucrop.UCrop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.File
 import java.time.Instant
@@ -72,35 +77,31 @@ import java.time.LocalDate
 import java.time.Period
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import com.yalantis.ucrop.UCrop
 
 object UserPrefs {
-    private const val PREF_NAME = "task_prefs"
-    private const val KEY_USER_PROFILE = "user_profile"
 
+    private val KEY_USER_PROFILE = stringPreferencesKey("user_profile")
     private val gson = Gson()
 
-    fun saveUser(context: Context, user: UserProfile) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        prefs.edit {
-            putString(KEY_USER_PROFILE, gson.toJson(user))
+    suspend fun saveUser(context: Context, user: UserProfile) {
+        context.recentSearchDataStore.edit { prefs ->
+            prefs[KEY_USER_PROFILE] = gson.toJson(user)
         }
     }
 
-    fun getUser(context: Context): UserProfile? {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val json = prefs.getString(KEY_USER_PROFILE, null) ?: return null
+    suspend fun getUser(context: Context): UserProfile? {
+        val prefs = context.recentSearchDataStore.data.first()
+        val json = prefs[KEY_USER_PROFILE] ?: return null
         return gson.fromJson(json, UserProfile::class.java)
     }
 
-    fun clearUser(context: Context) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        prefs.edit {
-            remove(KEY_USER_PROFILE)
+    suspend fun clearUser(context: Context) {
+        context.recentSearchDataStore.edit { prefs ->
+            prefs.remove(KEY_USER_PROFILE)
         }
     }
 
-    fun updateProfileImage(context: Context, imageUri: String) {
+    suspend fun updateProfileImage(context: Context, imageUri: String) {
         val user = getUser(context) ?: return
         saveUser(context, user.copy(profileImageUri = imageUri))
     }
@@ -110,7 +111,11 @@ object UserPrefs {
 fun ProfileScreen(snackbarHostState: SnackbarHostState) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val savedUser = remember { UserPrefs.getUser(context) }
+    var savedUser by remember { mutableStateOf<UserProfile?>(null) }
+
+    LaunchedEffect(Unit) {
+        savedUser = UserPrefs.getUser(context)
+    }
 
     var name by remember { mutableStateOf(savedUser?.name ?: "") }
     var email by remember { mutableStateOf(savedUser?.email ?: "") }
@@ -128,6 +133,17 @@ fun ProfileScreen(snackbarHostState: SnackbarHostState) {
         mutableStateOf(savedUser?.profileImageUri ?: "")
     }
 
+    LaunchedEffect(savedUser) {
+        savedUser?.let {
+            name = it.name
+            email = it.email
+            phoneNo = it.phone
+            bio = it.bio
+            birthDate = it.birthDate.takeIf { d -> d.isNotEmpty() }?.let { LocalDate.parse(it) }
+            profileImageUri = it.profileImageUri
+        }
+    }
+
     val cropLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.StartActivityForResult()
@@ -136,7 +152,9 @@ fun ProfileScreen(snackbarHostState: SnackbarHostState) {
                 val resultUri = UCrop.getOutput(result.data!!)
                 resultUri?.let {
                     profileImageUri = it.toString()
-                    UserPrefs.updateProfileImage(context, it.toString())
+                    scope.launch {
+                        UserPrefs.updateProfileImage(context, it.toString())
+                    }
                 }
             }
         }
@@ -190,7 +208,7 @@ fun ProfileScreen(snackbarHostState: SnackbarHostState) {
         )
 
         AsyncImage(
-            model = profileImageUri.ifEmpty { R.drawable.picofme },
+            model = profileImageUri.ifEmpty { R.drawable.default_profile },
             contentDescription = "Profile Image",
             contentScale = ContentScale.Crop,
             modifier = Modifier.constrainAs(profileImage) {
@@ -198,8 +216,8 @@ fun ProfileScreen(snackbarHostState: SnackbarHostState) {
                 start.linkTo(parent.start)
                 end.linkTo(parent.end)
             }.size(128.dp).clip(CircleShape),
-            placeholder = painterResource(R.drawable.picofme),
-            error = painterResource(R.drawable.picofme)
+            placeholder = painterResource(R.drawable.default_profile),
+            error = painterResource(R.drawable.default_profile)
         )
 
         Box(modifier = Modifier.constrainAs(changePhotoButton) {
@@ -224,7 +242,7 @@ fun ProfileScreen(snackbarHostState: SnackbarHostState) {
             )
         }
 
-        Text("Harsh Suthar", modifier = Modifier.constrainAs(userNameText) {
+        Text(text = name.ifBlank { "Your Name" }, modifier = Modifier.constrainAs(userNameText) {
             top.linkTo(changePhotoButton.bottom, margin = 15.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
@@ -621,18 +639,36 @@ fun ProfileScreen(snackbarHostState: SnackbarHostState) {
             bottom.linkTo(parent.bottom, margin = 15.dp)
         }.fillMaxWidth().padding(horizontal = 20.dp).height(52.dp),
             onClick = {
+                val errorMessage = when {
+                    name.isBlank() -> "Please enter your full name"
+                    email.isBlank() -> "Please enter your email address"
+                    phoneNo.isBlank() -> "Please enter your phone number"
+                    birthDate == null -> "Please select your birth date"
+                    else -> null
+                }
+
+                if (errorMessage != null) {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = errorMessage,
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                    return@Button
+                }
+
                 val user = UserProfile(
                     name = name.trim(),
                     email = email.trim(),
                     phone = phoneNo.trim(),
                     birthDate = birthDate?.toString() ?: "",
                     bio = bio.trim(),
-                    profileImageUri = ""
+                    profileImageUri = profileImageUri
                 )
 
-                UserPrefs.saveUser(context, user)
-
                 scope.launch {
+                    UserPrefs.saveUser(context, user)
+
                     snackbarHostState.showSnackbar(
                         message = "Profile updated successfully",
                         duration = SnackbarDuration.Short

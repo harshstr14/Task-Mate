@@ -33,6 +33,7 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -78,13 +79,13 @@ fun CalendarScreen(navController: NavController) {
     val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
 
-    val allTasks = remember {
-        listOf(
-            TaskPrefs.loadWorkTasks(context),
-            TaskPrefs.loadPersonalTasks(context),
-            TaskPrefs.loadStudyTasks(context),
-            TaskPrefs.loadDailyStudyTasks(context)
-        ).flatten()
+    val work by TaskPrefs.loadWorkTasks(context).collectAsState(emptyList())
+    val personal by TaskPrefs.loadPersonalTasks(context).collectAsState(emptyList())
+    val study by TaskPrefs.loadStudyTasks(context).collectAsState(emptyList())
+    val daily by TaskPrefs.loadDailyStudyTasks(context).collectAsState(emptyList())
+
+    val allTasks = remember(work, personal, study, daily) {
+        work + personal + study + daily
     }
 
     val filteredTasks = remember(allTasks, selectedDate) {
@@ -139,6 +140,23 @@ fun CalendarScreen(navController: NavController) {
             .toEpochMilli()
     )
 
+    fun updateMonth(newMonth: YearMonth) {
+        currentMonth = newMonth
+
+        val day = selectedDate.dayOfMonth.coerceAtMost(newMonth.lengthOfMonth())
+        val newDate = newMonth.atDay(day)
+
+        selectedDate = newDate
+        selectedIndex = day - 1
+
+        coroutineScope.launch {
+            listState.animateScrollToItem(
+                index = selectedIndex,
+                scrollOffset = -centerOffset.toInt()
+            )
+        }
+    }
+
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
         val (monthTitleText,emptyStateText,emptyStateIcon,previousMonthButton,nextMonthButton,
             addTaskButton,openCalendarButton,dateSelectorRow,categoryFilterRow,taskListColumn
@@ -170,8 +188,8 @@ fun CalendarScreen(navController: NavController) {
             top.linkTo(monthTitleText.top)
             bottom.linkTo(monthTitleText.bottom)
             end.linkTo(monthTitleText.start, margin = 2.dp)
-        }.size(32.dp).clickable {
-            currentMonth = currentMonth.minusMonths(1)
+        }.size(32.dp).clip(RoundedCornerShape(10.dp)).clickable {
+            updateMonth(currentMonth.minusMonths(1))
         }, contentAlignment = Alignment.Center) {
             Icon(modifier = Modifier.size(16.dp).rotate(90f), painter = painterResource(R.drawable.arrow),
                 contentDescription = "arrowLeft", tint = Color(0xFF24252C))
@@ -181,8 +199,8 @@ fun CalendarScreen(navController: NavController) {
             top.linkTo(monthTitleText.top)
             bottom.linkTo(monthTitleText.bottom)
             start.linkTo(monthTitleText.end, margin = 1.dp)
-        }.size(32.dp).clickable {
-            currentMonth = currentMonth.plusMonths(1)
+        }.size(32.dp).clip(RoundedCornerShape(10.dp)).clickable {
+            updateMonth(currentMonth.plusMonths(1))
         }, contentAlignment = Alignment.Center) {
             Icon(modifier = Modifier.size(16.dp).rotate(-90f), painter = painterResource(R.drawable.arrow),
                 contentDescription = "arrowLeft", tint = Color(0xFF24252C))

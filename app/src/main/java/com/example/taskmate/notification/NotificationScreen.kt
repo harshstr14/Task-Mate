@@ -1,5 +1,9 @@
 package com.example.taskmate.notification
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.os.Build
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,7 +37,166 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
+import androidx.core.app.NotificationCompat
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.Worker
+import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import com.example.taskmate.R
+import com.example.taskmate.home.Tasks
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import java.util.concurrent.TimeUnit
+
+class TaskDeadlineWorker(
+    context: Context,
+    params: WorkerParameters
+) : Worker(context, params) {
+
+    override fun doWork(): Result {
+
+        val taskName = inputData.getString("taskName") ?: return Result.failure()
+        val progressStatus = inputData.getString("progressStatus") ?: "Pending"
+
+        if (progressStatus == "Completed") {
+            return Result.success()
+        }
+
+        NotificationHelper.show(
+            applicationContext,
+            "Task Overdue ⏰",
+            "$taskName deadline has passed"
+        )
+
+        return Result.success()
+    }
+}
+
+object DateConverter {
+
+    private val formatter =
+        DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
+
+    fun startDateToMillis(date: String): Long {
+        val localDate = LocalDate.parse(date, formatter)
+        return localDate
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+    }
+
+    fun endDateToMillis(date: String): Long {
+        val localDate = LocalDate.parse(date, formatter)
+        return localDate
+            .atTime(23, 59, 59)
+            .atZone(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+    }
+}
+
+object NotificationHelper {
+
+    private const val CHANNEL_ID = "task_channel"
+
+    fun createChannel(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Task Notifications",
+                NotificationManager.IMPORTANCE_HIGH
+            )
+            context.getSystemService(NotificationManager::class.java)
+                .createNotificationChannel(channel)
+        }
+    }
+
+    fun show(
+        context: Context,
+        title: String,
+        message: String
+    ) {
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.notification_icon)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
+
+        context.getSystemService(NotificationManager::class.java)
+            .notify(System.currentTimeMillis().toInt(), notification)
+    }
+}
+
+fun scheduleTaskEndDateNotification(
+    context: Context,
+    task: Tasks
+) {
+    val endMillis =
+        DateConverter.endDateToMillis(task.endDate)
+
+    val delay = endMillis - System.currentTimeMillis()
+    if (delay <= 0) return
+
+    val data = workDataOf(
+        "taskId" to task.id,
+        "taskName" to task.taskName,
+        "progressStatus" to task.progressStatus
+    )
+
+    val work = OneTimeWorkRequestBuilder<TaskDeadlineWorker>()
+        .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+        .setInputData(data)
+        .addTag(task.id)
+        .build()
+
+    WorkManager.getInstance(context).enqueueUniqueWork(
+        task.id, // unique name per task
+        androidx.work.ExistingWorkPolicy.REPLACE, // replace old if exists
+        work
+    )
+}
+
+
+fun cancelTaskNotifications(
+    context: Context,
+    taskId: String
+) {
+    WorkManager.getInstance(context)
+        .cancelAllWorkByTag(taskId)
+}
+
+fun notifyOverdueTasks(
+    context: Context,
+    tasks: List<Tasks>
+) {
+    val prefs = context.getSharedPreferences("overdue_prefs", Context.MODE_PRIVATE)
+    val todayKey = LocalDate.now().toString()
+
+    val lastNotifiedDay = prefs.getString("last_notified_day", "")
+
+    if (lastNotifiedDay == todayKey) return
+
+    val now = System.currentTimeMillis()
+
+    tasks.forEach { task ->
+        val endMillis = DateConverter.endDateToMillis(task.endDate)
+
+        if (task.progressStatus != "Completed" && now > endMillis) {
+            NotificationHelper.show(
+                context,
+                "Task Overdue 🚨",
+                task.taskName
+            )
+        }
+    }
+
+    prefs.edit().putString("last_notified_day", todayKey).apply()
+}
 
 @Composable
 fun NotificationScreen() {

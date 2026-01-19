@@ -26,6 +26,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,8 +36,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -49,7 +53,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
-import androidx.core.content.edit
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.taskmate.R
@@ -57,73 +64,60 @@ import com.example.taskmate.home.TaskPrefs
 import com.example.taskmate.home.fonts
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 
+val Context.recentSearchDataStore by preferencesDataStore(
+    name = "task_prefs"
+)
 object RecentSearchPrefs {
-    private const val PREF_NAME = "task_prefs"
-    private const val KEY_RECENT_SEARCHES = "recent_searches"
-    private const val MAX_SIZE = 5
 
-    fun saveSearch(context: Context, query: String) {
+    private const val MAX_SIZE = 5
+    private val KEY_RECENT_SEARCHES = stringPreferencesKey("recent_searches")
+
+    private val gson = Gson()
+
+    suspend fun saveSearch(context: Context, query: String) {
         if (query.isBlank()) return
 
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val gson = Gson()
+        context.recentSearchDataStore.edit { prefs ->
+            val currentList = getListFromPrefs(prefs)
 
-        val existingJson = prefs.getString(KEY_RECENT_SEARCHES, null)
+            currentList.remove(query)
+            currentList.add(0, query)
+
+            if (currentList.size > MAX_SIZE) {
+                currentList.removeAt(currentList.lastIndex)
+            }
+
+            prefs[KEY_RECENT_SEARCHES] = gson.toJson(currentList)
+        }
+    }
+
+    fun recentSearchesFlow(context: Context) =
+        context.recentSearchDataStore.data.map { prefs ->
+            getListFromPrefs(prefs)
+        }
+
+    suspend fun removeSearch(context: Context, query: String) {
+        context.recentSearchDataStore.edit { prefs ->
+            val currentList = getListFromPrefs(prefs)
+            currentList.remove(query)
+            prefs[KEY_RECENT_SEARCHES] = gson.toJson(currentList)
+        }
+    }
+
+    suspend fun clearRecentSearches(context: Context) {
+        context.recentSearchDataStore.edit { prefs ->
+            prefs.remove(KEY_RECENT_SEARCHES)
+        }
+    }
+
+    private fun getListFromPrefs(prefs: Preferences): MutableList<String> {
+        val json = prefs[KEY_RECENT_SEARCHES] ?: return mutableListOf()
         val type = object : TypeToken<MutableList<String>>() {}.type
-
-        val searchList: MutableList<String> =
-            if (existingJson != null)
-                gson.fromJson(existingJson, type)
-            else
-                mutableListOf()
-
-        searchList.remove(query)
-
-        searchList.add(0, query)
-
-        if (searchList.size > MAX_SIZE) {
-            searchList.removeAt(searchList.lastIndex)
-        }
-
-        prefs.edit {
-            putString(KEY_RECENT_SEARCHES, gson.toJson(searchList))
-        }
-    }
-
-    fun loadRecentSearches(context: Context): List<String> {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val json = prefs.getString(KEY_RECENT_SEARCHES, null) ?: return emptyList()
-
-        val type = object : TypeToken<List<String>>() {}.type
-        return Gson().fromJson(json, type)
-    }
-
-    fun clearRecentSearches(context: Context) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        prefs.edit {
-            remove(KEY_RECENT_SEARCHES)
-        }
-    }
-
-    fun removeSearch(context: Context, query: String) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val gson = Gson()
-
-        val existingJson = prefs.getString(KEY_RECENT_SEARCHES, null) ?: return
-        val type = object : TypeToken<MutableList<String>>() {}.type
-
-        val searchList: MutableList<String> = gson.fromJson(existingJson, type)
-
-        searchList.remove(query)
-
-        prefs.edit {
-            putString(KEY_RECENT_SEARCHES, gson.toJson(searchList))
-        }
+        return gson.fromJson(json, type)
     }
 }
 @OptIn(ExperimentalMaterial3Api::class)
@@ -133,13 +127,14 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
     val scope = rememberCoroutineScope()
 
     var searchText by remember { mutableStateOf(TextFieldValue("")) }
-    val allTasks = remember {
-        listOf(
-            TaskPrefs.loadWorkTasks(context),
-            TaskPrefs.loadPersonalTasks(context),
-            TaskPrefs.loadStudyTasks(context),
-            TaskPrefs.loadDailyStudyTasks(context)
-        ).flatten()
+
+    val work by TaskPrefs.loadWorkTasks(context).collectAsState(emptyList())
+    val personal by TaskPrefs.loadPersonalTasks(context).collectAsState(emptyList())
+    val study by TaskPrefs.loadStudyTasks(context).collectAsState(emptyList())
+    val daily by TaskPrefs.loadDailyStudyTasks(context).collectAsState(emptyList())
+
+    val allTasks = remember(work, personal, study, daily) {
+        work + personal + study + daily
     }
 
     val filteredTasks = remember(searchText) {
@@ -152,12 +147,12 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
         }
     }
 
-    val recentSearches = remember {
-        mutableStateOf(RecentSearchPrefs.loadRecentSearches(context))
-    }
+    val recentSearches by RecentSearchPrefs
+        .recentSearchesFlow(context)
+        .collectAsState(initial = emptyList())
 
     val showRecentSearches =
-        searchText.text.isBlank() && recentSearches.value.isNotEmpty()
+        searchText.text.isBlank() && recentSearches.isNotEmpty()
 
     val showSearchResults =
         searchText.text.isNotBlank() && filteredTasks.isNotEmpty()
@@ -167,6 +162,8 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
 
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    var fromRecentClick by remember { mutableStateOf(false) }
 
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
         val(titleText, emptyStateText, recentSearchContainer, emptyStateIcon, searchBar, searchResultsList) = createRefs()
@@ -221,7 +218,7 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
                         end.linkTo(parent.end, margin = 15.dp)
                     }.size(72.dp,20.dp).clip(RoundedCornerShape(6.dp))
                         .clickable {
-                            if (recentSearches.value.isEmpty()) {
+                            if (recentSearches.isEmpty()) {
                                 scope.launch {
                                     snackbarHostState.showSnackbar(
                                         message = "No recent search to clear",
@@ -229,9 +226,8 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
                                     )
                                 }
                             } else {
-                                RecentSearchPrefs.clearRecentSearches(context)
-                                recentSearches.value = emptyList()
                                 scope.launch {
+                                    RecentSearchPrefs.clearRecentSearches(context)
                                     snackbarHostState.showSnackbar(
                                         message = "Search history cleared",
                                         duration = SnackbarDuration.Short
@@ -252,7 +248,7 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
                             end.linkTo(parent.end)
                         },contentPadding = PaddingValues(bottom = 15.dp), verticalArrangement = Arrangement.spacedBy(16.dp))
                         {
-                            items(recentSearches.value) { query ->
+                            items(recentSearches) { query ->
                                 ConstraintLayout(modifier = Modifier.fillMaxWidth()) {
                                     val(recentQueryText, removeQueryIcon) = createRefs()
 
@@ -261,6 +257,7 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
                                         bottom.linkTo(parent.bottom)
                                         start.linkTo(parent.start, margin = 15.dp) }
                                         .clickable {
+                                            fromRecentClick = true
                                             searchText = TextFieldValue(
                                                 text = query,
                                                 selection = TextRange(query.length)
@@ -280,9 +277,9 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
                                             bottom.linkTo(parent.bottom)
                                             end.linkTo(parent.end, margin = 15.dp)
                                         }.size(20.dp).clickable {
-                                            RecentSearchPrefs.removeSearch(context, query)
-                                            recentSearches.value =
-                                                RecentSearchPrefs.loadRecentSearches(context)
+                                            scope.launch {
+                                                RecentSearchPrefs.removeSearch(context, query)
+                                            }
                                         }
                                     )
                                 }
@@ -436,14 +433,12 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
             }
         }
     }
-    LaunchedEffect(searchText) {
-        if (searchText.text.trim().length >= 2) {
-            kotlinx.coroutines.delay(800) // debounce time
-
+    LaunchedEffect(searchText.text) {
+        if (!fromRecentClick && searchText.text.trim().length >= 2) {
+            delay(800)
             RecentSearchPrefs.saveSearch(context, searchText.text)
-            recentSearches.value =
-                RecentSearchPrefs.loadRecentSearches(context)
         }
+        fromRecentClick = false
     }
 }
 @Composable

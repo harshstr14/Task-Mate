@@ -50,6 +50,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -82,6 +83,8 @@ import com.example.taskmate.addtask.DateType
 import com.example.taskmate.home.TaskGroup
 import com.example.taskmate.home.TaskPrefs
 import com.example.taskmate.home.Tasks
+import com.example.taskmate.notification.cancelTaskNotifications
+import com.example.taskmate.notification.scheduleTaskEndDateNotification
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -95,13 +98,21 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val taskList = remember(taskGroup) {
-        when(taskGroup) {
-            TaskGroup.WORK -> TaskPrefs.loadWorkTasks(context)
-            TaskGroup.PERSONAL -> TaskPrefs.loadPersonalTasks(context)
-            TaskGroup.STUDY -> TaskPrefs.loadStudyTasks(context)
-            TaskGroup.DAILY_STUDY  -> TaskPrefs.loadDailyStudyTasks(context)
-            else -> TaskPrefs.loadWorkTasks(context)
+    val taskList by when (taskGroup) {
+        TaskGroup.WORK ->
+            TaskPrefs.loadWorkTasks(context).collectAsState(initial = emptyList())
+
+        TaskGroup.PERSONAL ->
+            TaskPrefs.loadPersonalTasks(context).collectAsState(initial = emptyList())
+
+        TaskGroup.STUDY ->
+            TaskPrefs.loadStudyTasks(context).collectAsState(initial = emptyList())
+
+        TaskGroup.DAILY_STUDY ->
+            TaskPrefs.loadDailyStudyTasks(context).collectAsState(initial = emptyList())
+
+        else -> {
+            TaskPrefs.loadWorkTasks(context).collectAsState(initial = emptyList())
         }
     }
 
@@ -852,17 +863,21 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
 
                 val oldGroup = task.taskGroup
 
-                if (oldGroup != selectedGroup) {
-                    // group changed
-                    removeTaskFromOldGroup(context, oldGroup, updatedTask.id)
-                    addTaskToNewGroup(context, selectedGroup, updatedTask)
-                } else {
-                    when (selectedGroup) {
-                        TaskGroup.WORK ->  TaskPrefs.saveWorkTasks(context, updatedTask)
-                        TaskGroup.PERSONAL ->  TaskPrefs.savePersonalTasks(context, updatedTask)
-                        TaskGroup.STUDY -> TaskPrefs.saveStudyTasks(context, updatedTask)
-                        TaskGroup.DAILY_STUDY ->  TaskPrefs.saveDailyStudyTasks(context, updatedTask)
+                scope.launch {
+                    if (oldGroup != selectedGroup) {
+                        removeTaskFromOldGroup(context, oldGroup, updatedTask.id)
+                        addTaskToNewGroup(context, selectedGroup, updatedTask)
+                    } else {
+                        when (selectedGroup) {
+                            TaskGroup.WORK -> TaskPrefs.saveWorkTask(context, updatedTask)
+                            TaskGroup.PERSONAL -> TaskPrefs.savePersonalTask(context, updatedTask)
+                            TaskGroup.STUDY -> TaskPrefs.saveStudyTask(context, updatedTask)
+                            TaskGroup.DAILY_STUDY -> TaskPrefs.saveDailyStudyTask(context, updatedTask)
+                        }
                     }
+
+                    cancelTaskNotifications(context, updatedTask.id)
+                    scheduleTaskEndDateNotification(context, updatedTask)
                 }
 
                 scope.launch {
@@ -1012,7 +1027,25 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
     }
 
     LaunchedEffect(task) {
-        task?.iconBg?.let { bg ->
+        task ?: return@LaunchedEffect
+
+        taskGroupName = task.taskGroupName
+        taskName = task.taskName
+        description = task.description
+
+        startDateText = task.startDate
+        endDateText = task.endDate
+
+        startDate = LocalDate.parse(task.startDate, formatter)
+        endDate = LocalDate.parse(task.endDate, formatter)
+
+        completedDates = task.completedDates
+
+        selectedGroup = task.taskGroup
+        selectedGroupIcon = task.icon
+        selectedGroupBG = Color(task.iconBg.toULong())
+
+        task.iconBg.let { bg ->
             selectedGroupBG = Color(bg.toULong())
         }
     }
@@ -1069,21 +1102,21 @@ private fun toggleCompletedDate(completedDates: List<String>, date: LocalDate): 
     return updated.toList()
 }
 
-private fun addTaskToNewGroup(context: Context, group: String, task: Tasks) {
+private suspend fun addTaskToNewGroup(context: Context, group: String, task: Tasks) {
     when (group) {
-        TaskGroup.WORK -> TaskPrefs.saveWorkTasks(context, task)
-        TaskGroup.PERSONAL -> TaskPrefs.savePersonalTasks(context, task)
-        TaskGroup.STUDY -> TaskPrefs.saveStudyTasks(context, task)
-        TaskGroup.DAILY_STUDY -> TaskPrefs.saveDailyStudyTasks(context, task)
+        TaskGroup.WORK -> TaskPrefs.saveWorkTask(context, task)
+        TaskGroup.PERSONAL -> TaskPrefs.savePersonalTask(context, task)
+        TaskGroup.STUDY -> TaskPrefs.saveStudyTask(context, task)
+        TaskGroup.DAILY_STUDY -> TaskPrefs.saveDailyStudyTask(context, task)
     }
 }
 
-private fun removeTaskFromOldGroup(context: Context, oldGroup: String, taskId: String) {
+private suspend fun removeTaskFromOldGroup(context: Context, oldGroup: String, taskId: String) {
     when (oldGroup) {
         TaskGroup.WORK -> TaskPrefs.removeWorkTask(context, taskId)
-        TaskGroup.PERSONAL -> TaskPrefs.removePersonalTasks(context, taskId)
-        TaskGroup.STUDY -> TaskPrefs.removeStudyTasks(context, taskId)
-        TaskGroup.DAILY_STUDY -> TaskPrefs.removeDailyStudyTasks(context, taskId)
+        TaskGroup.PERSONAL -> TaskPrefs.removePersonalTask(context, taskId)
+        TaskGroup.STUDY -> TaskPrefs.removeStudyTask(context, taskId)
+        TaskGroup.DAILY_STUDY -> TaskPrefs.removeDailyStudyTask(context, taskId)
     }
 }
 

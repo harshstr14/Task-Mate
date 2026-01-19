@@ -1,5 +1,6 @@
 package com.example.taskmate.tasksscreen
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,11 +28,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,23 +67,30 @@ fun TasksScreen(navController: NavHostController, snackbarHostState: SnackbarHos
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var tasksList by remember { mutableStateOf(mutableListOf<Tasks>()) }
     var pendingDelete by remember { mutableStateOf<Tasks?>(null) }
     val swipeStates = remember { mutableMapOf<String, SwipeToDismissBoxState>() }
     var showClearAllDialog by remember { mutableStateOf(false) }
 
+    val tasksList by when (taskGroup) {
+        TaskGroup.WORK ->
+            TaskPrefs.loadWorkTasks(context).collectAsState(emptyList())
+
+        TaskGroup.PERSONAL ->
+            TaskPrefs.loadPersonalTasks(context).collectAsState(emptyList())
+
+        TaskGroup.STUDY ->
+            TaskPrefs.loadStudyTasks(context).collectAsState(emptyList())
+
+        TaskGroup.DAILY_STUDY ->
+            TaskPrefs.loadDailyStudyTasks(context).collectAsState(emptyList())
+
+        else ->
+            TaskPrefs.loadWorkTasks(context).collectAsState(emptyList())
+    }
+    Log.d("Tasks","$tasksList")
+
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
         val (titleTasks, subtitleTaskGroup, clearAllButton, emptyTasksText, tasksListColumn, emptyTasksIcon) = createRefs()
-
-        LaunchedEffect(taskGroup) {
-            tasksList = when(taskGroup) {
-                TaskGroup.WORK -> TaskPrefs.loadWorkTasks(context).toMutableList()
-                TaskGroup.PERSONAL -> TaskPrefs.loadPersonalTasks(context).toMutableList()
-                TaskGroup.STUDY -> TaskPrefs.loadStudyTasks(context).toMutableList()
-                TaskGroup.DAILY_STUDY -> TaskPrefs.loadDailyStudyTasks(context).toMutableList()
-                else -> mutableListOf()
-            }
-        }
 
         if (tasksList.isEmpty()) {
             Icon(painter = painterResource(R.drawable.empty_task), contentDescription = "empty_notification",
@@ -150,13 +160,14 @@ fun TasksScreen(navController: NavHostController, snackbarHostState: SnackbarHos
                     rememberSwipeToDismissBoxState(SwipeToDismissBoxValue.Settled)
                 }
 
-                var handled by remember(task.id) { mutableStateOf(false) }
-
-                LaunchedEffect(dismissState.currentValue) {
-                    if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart && !handled) {
-                        handled = true
-                        pendingDelete = task
-                    }
+                LaunchedEffect(dismissState) {
+                    snapshotFlow { dismissState.currentValue }
+                        .collect { value ->
+                            if (value == SwipeToDismissBoxValue.EndToStart) {
+                                // Trigger deletion
+                                pendingDelete = task
+                            }
+                        }
                 }
 
                 SwipeToDismissBox(
@@ -327,7 +338,6 @@ fun TasksScreen(navController: NavHostController, snackbarHostState: SnackbarHos
                                         TaskGroup.STUDY -> TaskPrefs.clearStudyTasks(context)
                                         TaskGroup.DAILY_STUDY -> TaskPrefs.clearDailyStudyTasks(context)
                                     }
-                                    tasksList = mutableListOf()
 
                                     snackbarHostState.showSnackbar(
                                         message = "All tasks cleared",
@@ -360,27 +370,17 @@ fun TasksScreen(navController: NavHostController, snackbarHostState: SnackbarHos
 
         LaunchedEffect(pendingDelete) {
             pendingDelete?.let { task ->
+                scope.launch {
+                    when (task.taskGroup) {
+                        TaskGroup.WORK -> TaskPrefs.removeWorkTask(context, task.id)
+                        TaskGroup.PERSONAL -> TaskPrefs.removePersonalTask(context, task.id)
+                        TaskGroup.STUDY -> TaskPrefs.removeStudyTask(context, task.id)
+                        TaskGroup.DAILY_STUDY -> TaskPrefs.removeDailyStudyTask(context, task.id) // <- must launch coroutine
+                    }
 
-                tasksList = tasksList.filter { it.id != task.id }.toMutableList()
-
-                when (task.taskGroup) {
-                    TaskGroup.WORK ->
-                        TaskPrefs.removeWorkTask(context, task.id)
-                    TaskGroup.PERSONAL ->
-                        TaskPrefs.removePersonalTasks(context, task.id)
-                    TaskGroup.STUDY ->
-                        TaskPrefs.removeStudyTasks(context, task.id)
-                    TaskGroup.DAILY_STUDY ->
-                        TaskPrefs.removeDailyStudyTasks(context, task.id)
+                    snackbarHostState.showSnackbar("Task deleted", duration = SnackbarDuration.Short)
                 }
-
-                snackbarHostState.showSnackbar(
-                    message = "Task deleted",
-                    duration = SnackbarDuration.Short
-                )
-
                 swipeStates[task.id]?.reset()
-
                 pendingDelete = null
             }
         }

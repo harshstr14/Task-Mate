@@ -73,6 +73,7 @@ import com.example.taskmate.R
 import com.example.taskmate.home.TaskGroup
 import com.example.taskmate.home.TaskPrefs
 import com.example.taskmate.home.Tasks
+import com.example.taskmate.notification.scheduleTaskEndDateNotification
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -654,17 +655,18 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
                     progressStatus = "To Do"
                 )
 
-                when(selectedGroup) {
-                    TaskGroup.WORK  ->  TaskPrefs.saveWorkTasks(context,task)
-                    TaskGroup.PERSONAL ->  TaskPrefs.savePersonalTasks(context,task)
-                    TaskGroup.STUDY -> TaskPrefs.saveStudyTasks(context,task)
-                    TaskGroup.DAILY_STUDY ->  TaskPrefs.saveDailyStudyTasks(context,task)
+                scope.launch {
+                    when(selectedGroup) {
+                        TaskGroup.WORK  ->  TaskPrefs.saveWorkTask(context,task)
+                        TaskGroup.PERSONAL ->  TaskPrefs.savePersonalTask(context,task)
+                        TaskGroup.STUDY -> TaskPrefs.saveStudyTask(context,task)
+                        TaskGroup.DAILY_STUDY ->  TaskPrefs.saveDailyStudyTask(context,task)
+                    }
+
+                    scheduleTaskEndDateNotification(context, task)
                 }
 
                 clearFields(
-                    setSelectedGroup = { selectedGroup = it },
-                    setSelectedGroupBG = { selectedGroupBG = it },
-                    setSelectedGroupIcon = { selectedGroupIcon = it },
                     setTaskGroupName = { taskGroupName = it },
                     setTaskName = { taskName = it },
                     setDescription = { description = it },
@@ -815,9 +817,6 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
     }
 }
 private fun clearFields(
-    setSelectedGroup: (String) -> Unit,
-    setSelectedGroupBG: (Color) -> Unit,
-    setSelectedGroupIcon: (Int) -> Unit,
     setTaskGroupName: (String) -> Unit,
     setTaskName: (String) -> Unit,
     setDescription: (String) -> Unit,
@@ -837,10 +836,6 @@ private fun clearFields(
 
     setStartDateText("Select date")
     setEndDateText("Select date")
-
-    setSelectedGroup("Work")
-    setSelectedGroupBG(Color(0xFFFFE4F2))
-    setSelectedGroupIcon(R.drawable.briefcase)
 }
 
 @Preview(showSystemUi = true)
