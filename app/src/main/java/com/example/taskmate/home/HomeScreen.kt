@@ -35,6 +35,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -363,6 +364,7 @@ private fun ProfileView(modifier: Modifier,modifier2: Modifier,modifier3: Modifi
 @Composable
 private fun TodayTaskProgress(modifier: Modifier, navController: NavController) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
     val today = LocalDate.now()
 
@@ -374,7 +376,10 @@ private fun TodayTaskProgress(modifier: Modifier, navController: NavController) 
     val allTasks = remember(work, personal, study, daily) {
         work + personal + study + daily
     }
-    notifyOverdueTasks(context, allTasks)
+
+    LaunchedEffect(Unit){
+        notifyOverdueTasks(context, allTasks)
+    }
 
     // Filter today tasks
     val todayTasks = remember(allTasks) {

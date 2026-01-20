@@ -161,7 +161,7 @@ fun Main_Screen() {
                 CalendarScreen(navController)
             }
             composable(BottomNavRoute.Notification.route) {
-                NotificationScreen()
+                NotificationScreen(snackbarHostState = snackbarHostState)
             }
             composable(BottomNavRoute.Search.route) {
                 SearchScreen(navController, snackbarHostState = snackbarHostState)

@@ -16,17 +16,24 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -38,38 +45,102 @@ import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import androidx.core.app.NotificationCompat
+import androidx.core.content.edit
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import androidx.work.CoroutineWorker
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import androidx.work.Worker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.android.identity.util.UUID
 import com.example.taskmate.R
 import com.example.taskmate.home.Tasks
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-class TaskDeadlineWorker(
-    context: Context,
-    params: WorkerParameters
-) : Worker(context, params) {
+val Context.notificationDataStore by preferencesDataStore(
+    name = "notification_store"
+)
 
-    override fun doWork(): Result {
+object NotificationStore {
+    private val LIST = stringPreferencesKey("notification_list")
+    private val gson = Gson()
+    private val type =
+        object : TypeToken<List<StoredNotification>>() {}.type
 
+    private fun parse(json: String?): List<StoredNotification> =
+        if (json.isNullOrEmpty()) emptyList()
+        else gson.fromJson(json, type)
+
+    fun getAll(context: Context): Flow<List<StoredNotification>> =
+        context.notificationDataStore.data.map { prefs ->
+            parse(prefs[LIST])
+        }
+
+    suspend fun add(context: Context, notification: StoredNotification) {
+        context.notificationDataStore.edit { prefs ->
+            val current = parse(prefs[LIST]).toMutableList()
+            current.add(0, notification) // newest first
+            prefs[LIST] = gson.toJson(current)
+        }
+    }
+
+    suspend fun clear(context: Context) {
+        context.notificationDataStore.edit {
+            it.remove(LIST)
+        }
+    }
+}
+
+class TaskDeadlineWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+
+    override suspend fun doWork(): Result {
+
+        val taskId= inputData.getString("taskId") ?: return Result.failure()
         val taskName = inputData.getString("taskName") ?: return Result.failure()
         val progressStatus = inputData.getString("progressStatus") ?: "Pending"
+        val taskIcon = inputData.getInt("taskIcon",0)
+        val taskIconBG = inputData.getLong("taskIconBG",0L)
 
         if (progressStatus == "Completed") {
             return Result.success()
         }
 
+        val endMillis = inputData.getLong("endMillis", -1L)
+
+        if (endMillis <= 0L) return Result.failure()
+
+        val message = getTaskNotificationMessage(endMillis)
+
         NotificationHelper.show(
             applicationContext,
-            "Task Overdue ⏰",
-            "$taskName deadline has passed"
+            taskName,
+            message
         )
+
+        val notification = StoredNotification(
+            id = UUID.randomUUID().toString(),
+            taskId = taskId,
+            title = "Task Ending Soon ⏳",
+            message = "$taskName • $message",
+            timestamp = System.currentTimeMillis(),
+            icon  = taskIcon,
+            iconBg = taskIconBG
+        )
+
+        NotificationStore.add(applicationContext, notification)
 
         return Result.success()
     }
@@ -88,10 +159,15 @@ object DateConverter {
             .toEpochMilli()
     }
 
-    fun endDateToMillis(date: String): Long {
-        val localDate = LocalDate.parse(date, formatter)
-        return localDate
-            .atTime(23, 59, 59)
+    fun endDateWithCreationTime(endDate: String, createdAtMillis: Long): Long {
+        val endLocalDate = LocalDate.parse(endDate, formatter)
+
+        val creationTime = Instant.ofEpochMilli(createdAtMillis)
+            .atZone(ZoneId.systemDefault())
+            .toLocalTime()
+
+        return endLocalDate
+            .atTime(creationTime)
             .atZone(ZoneId.systemDefault())
             .toInstant()
             .toEpochMilli()
@@ -99,7 +175,6 @@ object DateConverter {
 }
 
 object NotificationHelper {
-
     private const val CHANNEL_ID = "task_channel"
 
     fun createChannel(context: Context) {
@@ -114,11 +189,7 @@ object NotificationHelper {
         }
     }
 
-    fun show(
-        context: Context,
-        title: String,
-        message: String
-    ) {
+    fun show(context: Context, title: String, message: String) {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.notification_icon)
             .setContentTitle(title)
@@ -132,20 +203,75 @@ object NotificationHelper {
     }
 }
 
-fun scheduleTaskEndDateNotification(
-    context: Context,
-    task: Tasks
-) {
-    val endMillis =
-        DateConverter.endDateToMillis(task.endDate)
+fun getTaskNotificationMessage(endMillis: Long): String {
 
-    val delay = endMillis - System.currentTimeMillis()
+    val nowMillis = System.currentTimeMillis()
+
+    val now = Instant.ofEpochMilli(nowMillis)
+        .atZone(ZoneId.systemDefault())
+
+    val end = Instant.ofEpochMilli(endMillis)
+        .atZone(ZoneId.systemDefault())
+
+    val duration = Duration.between(now, end)
+    val hoursLeft = duration.toHours()
+
+    return when {
+
+        // 🔴 Already overdue
+        endMillis < nowMillis ->
+            "Ended on ${formatDate(endMillis)} – Please complete it"
+
+        // ⏰ Ending in next 4 hours
+        hoursLeft in 0..4 ->
+            "Ending in $hoursLeft hour${if (hoursLeft != 1L) "s" else ""}"
+
+        // 📅 Ends today
+        end.toLocalDate() == now.toLocalDate() ->
+            "Ends today at ${formatTime(endMillis)}"
+
+        // 📅 Ends tomorrow
+        end.toLocalDate() == now.toLocalDate().plusDays(1) ->
+            "Ends tomorrow at ${formatTime(endMillis)}"
+
+        // 📆 Ends later
+        else ->
+            "Ends on ${formatDate(endMillis)}"
+    }
+}
+
+fun formatTime(millis: Long): String {
+    return Instant.ofEpochMilli(millis)
+        .atZone(ZoneId.systemDefault())
+        .toLocalTime()
+        .format(DateTimeFormatter.ofPattern("h:mm a"))
+}
+
+fun formatDate(millis: Long): String {
+    return Instant.ofEpochMilli(millis)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDate()
+        .format(DateTimeFormatter.ofPattern("dd MMM"))
+}
+
+fun scheduleTaskEndDateNotification(context: Context, task: Tasks) {
+    val endMillis = DateConverter.endDateWithCreationTime(task.endDate, task.time)
+
+    val fourHoursMillis = TimeUnit.HOURS.toMillis(4)
+
+    val notifyTime = endMillis - fourHoursMillis
+
+    val delay = notifyTime - System.currentTimeMillis()
+
     if (delay <= 0) return
 
     val data = workDataOf(
         "taskId" to task.id,
         "taskName" to task.taskName,
-        "progressStatus" to task.progressStatus
+        "progressStatus" to task.progressStatus,
+        "endMillis" to endMillis,
+        "taskIcon" to task.icon,
+        "taskIconBG" to task.iconBg
     )
 
     val work = OneTimeWorkRequestBuilder<TaskDeadlineWorker>()
@@ -155,28 +281,25 @@ fun scheduleTaskEndDateNotification(
         .build()
 
     WorkManager.getInstance(context).enqueueUniqueWork(
-        task.id, // unique name per task
-        androidx.work.ExistingWorkPolicy.REPLACE, // replace old if exists
+        task.id,
+        androidx.work.ExistingWorkPolicy.REPLACE,
         work
     )
 }
 
-
-fun cancelTaskNotifications(
-    context: Context,
-    taskId: String
-) {
+fun cancelTaskNotifications(context: Context, taskId: String) {
     WorkManager.getInstance(context)
         .cancelAllWorkByTag(taskId)
 }
 
-fun notifyOverdueTasks(
-    context: Context,
-    tasks: List<Tasks>
-) {
-    val prefs = context.getSharedPreferences("overdue_prefs", Context.MODE_PRIVATE)
-    val todayKey = LocalDate.now().toString()
+suspend fun notifyOverdueTasks(context: Context, tasks: List<Tasks>) {
 
+    val prefs = context.getSharedPreferences(
+        "overdue_prefs",
+        Context.MODE_PRIVATE
+    )
+
+    val todayKey = LocalDate.now().toString()
     val lastNotifiedDay = prefs.getString("last_notified_day", "")
 
     if (lastNotifiedDay == todayKey) return
@@ -184,27 +307,52 @@ fun notifyOverdueTasks(
     val now = System.currentTimeMillis()
 
     tasks.forEach { task ->
-        val endMillis = DateConverter.endDateToMillis(task.endDate)
+
+        val endMillis =
+            DateConverter.endDateWithCreationTime(
+                task.endDate,
+                task.time
+            )
 
         if (task.progressStatus != "Completed" && now > endMillis) {
+
             NotificationHelper.show(
                 context,
                 "Task Overdue 🚨",
                 task.taskName
             )
+
+            val notification = StoredNotification(
+                id = UUID.randomUUID().toString(),
+                taskId = task.id,
+                title = "Task Overdue 🚨",
+                message = task.taskName,
+                timestamp = System.currentTimeMillis(),
+                icon = task.icon,
+                iconBg = task.iconBg
+            )
+
+            NotificationStore.add(context, notification)
         }
     }
 
-    prefs.edit().putString("last_notified_day", todayKey).apply()
+    prefs.edit { putString("last_notified_day", todayKey) }
 }
 
 @Composable
-fun NotificationScreen() {
+fun NotificationScreen(snackbarHostState: SnackbarHostState) {
+    val context = LocalContext.current
     val fonts = FontFamily(
         Font(R.font.merriweathersans_bold, FontWeight.Bold),
         Font(R.font.merriweathersans_semibold, FontWeight.SemiBold),
         Font(R.font.merriweathersans_regular, FontWeight.Normal)
     )
+
+    val notifications by NotificationStore
+        .getAll(context)
+        .collectAsState(initial = emptyList())
+
+    val scope = rememberCoroutineScope()
 
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
         val (titleText, todayText, clearAllButton, emptyIcon, emptyMessage, notificationsList) = createRefs()
@@ -228,7 +376,23 @@ fun NotificationScreen() {
             top.linkTo(titleText.bottom, margin = 15.dp)
             end.linkTo(parent.end, margin = 20.dp)
         }.size(72.dp,20.dp).clip(RoundedCornerShape(6.dp))
-            .clickable { }, contentAlignment = Alignment.Center) {
+            .clickable {
+                if (notifications.isEmpty()) {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = "No Notification to clear",
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                } else {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = "Notifications cleared",
+                            duration = SnackbarDuration.Short
+                        )
+                        NotificationStore.clear(context)
+                    }
+                } }, contentAlignment = Alignment.Center) {
             Text("Clear All", fontSize = 14.sp, lineHeight = 17.sp, fontFamily = com.example.taskmate.home.fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
                 color = Color(0xFF5F33E1)
             )
@@ -251,34 +415,6 @@ fun NotificationScreen() {
             color = Color(0xFF6E6A7C)
         )
 
-        val taskGroups = listOf(
-            "Market Research",
-            "Prepare Presentation",
-            "Submit Resume",
-            "Complete Kotlin Practice"
-        )
-        val deadlineStatus  = listOf(
-            "Ended on 8 Jan – Please complete it",
-            "Ends today at 9:00 am",
-            "Ends tomorrow at 10:00 am",
-            "Ends on 12 Jan"
-        )
-        val taskGroupsIcons = listOf(
-            R.drawable.briefcase,
-            R.drawable.briefcase,
-            R.drawable.personal,
-            R.drawable.study
-        )
-        val taskGroupsIconsColors = listOf(
-            Color(0xFFFFE4F2),
-            Color(0xFFFFE4F2),
-            Color(0xFFEDE4FF),
-            Color(0xFFFFF6D4)
-        )
-        val time = listOf(
-            "8:00 am","7:00 am","10:00 am","6:00 pm"
-        )
-
         LazyColumn(modifier = Modifier.constrainAs(notificationsList) {
             top.linkTo(todayText.bottom, margin = 20.dp)
             start.linkTo(parent.start)
@@ -286,13 +422,7 @@ fun NotificationScreen() {
             height = Dimension.fillToConstraints
         },contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp))
         {
-            items(0) { index ->
-                val taskGroupIcon = taskGroupsIcons[index % taskGroupsIcons.size]
-                val taskGroupIconColor = taskGroupsIconsColors[index % taskGroupsIconsColors.size]
-                val taskGroup = taskGroups[index % taskGroups.size]
-                val totalTask = deadlineStatus[index % deadlineStatus.size]
-                val time = time[index % time.size]
-
+            items(notifications) { task ->
                 ElevatedCard(elevation = CardDefaults.cardElevation(
                     defaultElevation = 0.dp
                 ), colors = CardDefaults.cardColors(
@@ -311,28 +441,28 @@ fun NotificationScreen() {
                             top.linkTo(parent.top)
                             start.linkTo(parent.start, margin = 15.dp)
                             bottom.linkTo(parent.bottom)
-                        }.size(34.dp).background(taskGroupIconColor,
+                        }.size(34.dp).background(Color(task.iconBg.toULong()),
                             shape = RoundedCornerShape(9.dp)),
                             contentAlignment = Alignment.Center
                         )  {
-                            Image(modifier = Modifier.size(20.dp), painter = painterResource(taskGroupIcon), contentDescription = "briefcase")
+                            Image(modifier = Modifier.size(20.dp), painter = painterResource(task.icon), contentDescription = "briefcase")
                         }
 
-                        Text(taskGroup, modifier = Modifier.constrainAs(taskNameText) {
+                        Text(task.title, modifier = Modifier.constrainAs(taskNameText) {
                             top.linkTo(parent.top, margin = 16.dp)
                             start.linkTo(iconBox.end, margin = 12.dp)
                         }, fontFamily = com.example.taskmate.home.fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF24252C), maxLines = 1
                         )
 
-                        Text(totalTask, modifier = Modifier.constrainAs(deadlineText) {
+                        Text(task.message, modifier = Modifier.constrainAs(deadlineText) {
                             start.linkTo(taskNameText.start)
                             top.linkTo(taskNameText.bottom, margin = 5.dp)
                         }, fontFamily = com.example.taskmate.home.fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                             fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 1
                         )
 
-                        Text(time, modifier = Modifier.constrainAs(timeText) {
+                        Text(formatNotificationTime(task.timestamp), modifier = Modifier.constrainAs(timeText) {
                             end.linkTo(parent.end, margin = 15.dp)
                             top.linkTo(taskNameText.top)
                         }, fontFamily = com.example.taskmate.home.fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
@@ -345,8 +475,27 @@ fun NotificationScreen() {
     }
 }
 
+private fun formatNotificationTime(timestamp: Long): String {
+    val time = Instant.ofEpochMilli(timestamp)
+
+    val zone = ZoneId.systemDefault()
+    val today = LocalDate.now(zone)
+    val date = time.atZone(zone).toLocalDate()
+
+    return when (date) {
+        today ->
+            time.atZone(zone)
+                .format(DateTimeFormatter.ofPattern("h:mm a"))
+        today.minusDays(1) ->
+            "Yesterday"
+        else -> time.atZone(zone)
+            .format(DateTimeFormatter.ofPattern("dd MMM"))
+    }
+}
+
 @Preview(showSystemUi = true)
 @Composable
 private fun ShowNotificationScreen() {
-    NotificationScreen()
+    val snackbarHostState = SnackbarHostState()
+    NotificationScreen(snackbarHostState)
 }

@@ -71,6 +71,7 @@ import kotlinx.coroutines.launch
 val Context.recentSearchDataStore by preferencesDataStore(
     name = "task_prefs"
 )
+
 object RecentSearchPrefs {
 
     private const val MAX_SIZE = 5

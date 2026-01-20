@@ -83,6 +83,7 @@ import com.example.taskmate.addtask.DateType
 import com.example.taskmate.home.TaskGroup
 import com.example.taskmate.home.TaskPrefs
 import com.example.taskmate.home.Tasks
+import com.example.taskmate.notification.NotificationHelper
 import com.example.taskmate.notification.cancelTaskNotifications
 import com.example.taskmate.notification.scheduleTaskEndDateNotification
 import kotlinx.coroutines.launch
@@ -876,8 +877,11 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
                         }
                     }
 
-                    cancelTaskNotifications(context, updatedTask.id)
+                    if (finalProgress == 100) {
+                        cancelTaskNotifications(context, task.id)
+                    }
                     scheduleTaskEndDateNotification(context, updatedTask)
+                    NotificationHelper.show(context,"Task Updated","Task Updated Successfullly")
                 }
 
                 scope.launch {
