@@ -223,10 +223,15 @@ private fun BottomNavBar(navController: NavController) {
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { navController.navigate(BottomNavRoute.Home.route) {
-                popUpTo(navController.graph.startDestinationId)
-                launchSingleTop = true
-            }}) {
+            IconButton(onClick = {
+                if (currentRoute != BottomNavRoute.Home.route) {
+                    navController.navigate(BottomNavRoute.Home.route) {
+                        popUpTo(navController.graph.startDestinationId)
+                        launchSingleTop = true
+                    }
+
+                }
+            }) {
                 Icon(painterResource(R.drawable.home_icon), contentDescription = "homeIcon",
                     tint = if (currentRoute == BottomNavRoute.Home.route)
                         Color.Unspecified
@@ -235,10 +240,14 @@ private fun BottomNavBar(navController: NavController) {
                 )
             }
             Spacer(modifier = Modifier.width(32.dp))
-            IconButton(onClick = { navController.navigate(BottomNavRoute.Calendar.route) {
-                popUpTo(navController.graph.startDestinationId)
-                launchSingleTop = true
-            }}) {
+            IconButton(onClick = {
+                if (currentRoute != BottomNavRoute.Calendar.route) {
+                    navController.navigate(BottomNavRoute.Calendar.route) {
+                        popUpTo(navController.graph.startDestinationId)
+                        launchSingleTop = true
+                    }
+                }
+            }) {
                 Icon(painterResource(R.drawable.calendar_icon), contentDescription = "calendarIcon",
                     tint = if (currentRoute == BottomNavRoute.Calendar.route)
                         Color.Unspecified
@@ -247,10 +256,14 @@ private fun BottomNavBar(navController: NavController) {
                 )
             }
             Spacer(modifier = Modifier.width(32.dp))
-            IconButton(onClick = { navController.navigate(BottomNavRoute.Notification.route) {
-                    popUpTo(navController.graph.startDestinationId)
-                    launchSingleTop = true
-            }}) {
+            IconButton(onClick = {
+                if (currentRoute != BottomNavRoute.Notification.route) {
+                    navController.navigate(BottomNavRoute.Notification.route) {
+                        popUpTo(navController.graph.startDestinationId)
+                        launchSingleTop = true
+                    }
+                }
+            }) {
                 Icon(painterResource(R.drawable.notification_icon), contentDescription = "notificationIcon",
                     tint = if (currentRoute == BottomNavRoute.Notification.route)
                         Color.Unspecified
@@ -259,10 +272,14 @@ private fun BottomNavBar(navController: NavController) {
                 )
             }
             Spacer(modifier = Modifier.width(32.dp))
-            IconButton(onClick = { navController.navigate(BottomNavRoute.Search.route) {
-                popUpTo(navController.graph.startDestinationId)
-                launchSingleTop = true
-            }}) {
+            IconButton(onClick = {
+                if (currentRoute != BottomNavRoute.Search.route) {
+                    navController.navigate(BottomNavRoute.Search.route) {
+                        popUpTo(navController.graph.startDestinationId)
+                        launchSingleTop = true
+                    }
+                }
+            }) {
                 Icon(painterResource(R.drawable.search_icon), contentDescription = "searchIcon",
                     tint = if (currentRoute == BottomNavRoute.Search.route)
                         Color.Unspecified

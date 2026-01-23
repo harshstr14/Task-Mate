@@ -881,7 +881,6 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
                         cancelTaskNotifications(context, task.id)
                     }
                     scheduleTaskEndDateNotification(context, updatedTask)
-                    NotificationHelper.show(context,"Task Updated","Task Updated Successfullly")
                 }
 
                 scope.launch {

@@ -23,11 +23,20 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,8 +44,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -57,6 +64,7 @@ import androidx.work.workDataOf
 import com.android.identity.util.UUID
 import com.example.taskmate.R
 import com.example.taskmate.home.Tasks
+import com.example.taskmate.home.fonts
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
@@ -102,10 +110,17 @@ object NotificationStore {
             it.remove(LIST)
         }
     }
+
+    suspend fun removeNotification(context: Context, taskId: String) {
+        context.notificationDataStore.edit { prefs ->
+            val list = parse(prefs[LIST]).toMutableList()
+            list.removeAll { it.id == taskId }
+            prefs[LIST] = gson.toJson(list)
+        }
+    }
 }
 
 class TaskDeadlineWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
-
     override suspend fun doWork(): Result {
 
         val taskId= inputData.getString("taskId") ?: return Result.failure()
@@ -147,7 +162,6 @@ class TaskDeadlineWorker(context: Context, params: WorkerParameters) : Coroutine
 }
 
 object DateConverter {
-
     private val formatter =
         DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
 
@@ -199,7 +213,7 @@ object NotificationHelper {
             .build()
 
         context.getSystemService(NotificationManager::class.java)
-            .notify(System.currentTimeMillis().toInt(), notification)
+            .notify(UUID.randomUUID().hashCode(), notification)
     }
 }
 
@@ -257,13 +271,14 @@ fun formatDate(millis: Long): String {
 fun scheduleTaskEndDateNotification(context: Context, task: Tasks) {
     val endMillis = DateConverter.endDateWithCreationTime(task.endDate, task.time)
 
-    val fourHoursMillis = TimeUnit.HOURS.toMillis(4)
+    val now = System.currentTimeMillis()
+    val notifyTime = endMillis - TimeUnit.HOURS.toMillis(4)
 
-    val notifyTime = endMillis - fourHoursMillis
-
-    val delay = notifyTime - System.currentTimeMillis()
-
-    if (delay <= 0) return
+    val delay = when {
+        notifyTime > now -> notifyTime - now          // normal case
+        endMillis > now -> TimeUnit.SECONDS.toMillis(5)
+        else -> return                                 // task already ended
+    }
 
     val data = workDataOf(
         "taskId" to task.id,
@@ -342,17 +357,14 @@ suspend fun notifyOverdueTasks(context: Context, tasks: List<Tasks>) {
 @Composable
 fun NotificationScreen(snackbarHostState: SnackbarHostState) {
     val context = LocalContext.current
-    val fonts = FontFamily(
-        Font(R.font.merriweathersans_bold, FontWeight.Bold),
-        Font(R.font.merriweathersans_semibold, FontWeight.SemiBold),
-        Font(R.font.merriweathersans_regular, FontWeight.Normal)
-    )
+    val scope = rememberCoroutineScope()
+
+    var pendingDelete by remember { mutableStateOf<StoredNotification?>(null) }
+    val swipeStates = remember { mutableMapOf<String, SwipeToDismissBoxState>() }
 
     val notifications by NotificationStore
         .getAll(context)
         .collectAsState(initial = emptyList())
-
-    val scope = rememberCoroutineScope()
 
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
         val (titleText, todayText, clearAllButton, emptyIcon, emptyMessage, notificationsList) = createRefs()
@@ -386,11 +398,13 @@ fun NotificationScreen(snackbarHostState: SnackbarHostState) {
                     }
                 } else {
                     scope.launch {
+                        NotificationStore.clear(context)
+                        swipeStates.clear()
+
                         snackbarHostState.showSnackbar(
                             message = "Notifications cleared",
                             duration = SnackbarDuration.Short
                         )
-                        NotificationStore.clear(context)
                     }
                 } }, contentAlignment = Alignment.Center) {
             Text("Clear All", fontSize = 14.sp, lineHeight = 17.sp, fontFamily = com.example.taskmate.home.fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
@@ -398,78 +412,138 @@ fun NotificationScreen(snackbarHostState: SnackbarHostState) {
             )
         }
 
-        Icon(painter = painterResource(R.drawable.empty_notification), contentDescription = "empty_notification",
-            tint = Color(0xFF5F33E1), modifier = Modifier.constrainAs(emptyIcon) {
-                top.linkTo(parent.top)
-                bottom.linkTo(parent.bottom)
+        if (notifications.isEmpty()) {
+            Icon(painter = painterResource(R.drawable.empty_notification), contentDescription = "empty_notification",
+                tint = Color(0xFF5F33E1), modifier = Modifier.constrainAs(emptyIcon) {
+                    top.linkTo(parent.top)
+                    bottom.linkTo(parent.bottom)
+                    start.linkTo(parent.start)
+                    end.linkTo(parent.end)
+                }.size(92.dp)
+            )
+
+            Text("No Notifications", modifier = Modifier.constrainAs(emptyMessage) {
+                top.linkTo(emptyIcon.bottom)
                 start.linkTo(parent.start)
                 end.linkTo(parent.end)
-            }.size(92.dp)
-        )
-
-        Text("No Notifications", modifier = Modifier.constrainAs(emptyMessage) {
-            top.linkTo(emptyIcon.bottom)
-            start.linkTo(parent.start)
-            end.linkTo(parent.end)
-        }, fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
-            color = Color(0xFF6E6A7C)
-        )
+            }, fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
+                color = Color(0xFF6E6A7C)
+            )
+        }
 
         LazyColumn(modifier = Modifier.constrainAs(notificationsList) {
             top.linkTo(todayText.bottom, margin = 20.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
+            bottom.linkTo(parent.bottom, margin = (-15).dp)
             height = Dimension.fillToConstraints
         },contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp))
         {
-            items(notifications) { task ->
-                ElevatedCard(elevation = CardDefaults.cardElevation(
-                    defaultElevation = 0.dp
-                ), colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFFFFFFF)
-                ), modifier = Modifier.padding(horizontal = 20.dp).height(68.dp).fillMaxWidth().shadow(
-                    elevation = 12.dp,
-                    shape = RoundedCornerShape(15.dp),
-                    ambientColor = Color(0xFFFFFFFF).copy(alpha = 0.2f),
-                    spotColor = Color(0xFFFFFFFF).copy(alpha = 0.4f)
-                ),shape = RoundedCornerShape(15.dp)) {
-                    ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-
-                        val (iconBox, taskNameText, deadlineText, timeText) = createRefs()
-
-                        Box(modifier = Modifier.constrainAs(iconBox) {
-                            top.linkTo(parent.top)
-                            start.linkTo(parent.start, margin = 15.dp)
-                            bottom.linkTo(parent.bottom)
-                        }.size(34.dp).background(Color(task.iconBg.toULong()),
-                            shape = RoundedCornerShape(9.dp)),
-                            contentAlignment = Alignment.Center
-                        )  {
-                            Image(modifier = Modifier.size(20.dp), painter = painterResource(task.icon), contentDescription = "briefcase")
-                        }
-
-                        Text(task.title, modifier = Modifier.constrainAs(taskNameText) {
-                            top.linkTo(parent.top, margin = 16.dp)
-                            start.linkTo(iconBox.end, margin = 12.dp)
-                        }, fontFamily = com.example.taskmate.home.fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                            fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF24252C), maxLines = 1
-                        )
-
-                        Text(task.message, modifier = Modifier.constrainAs(deadlineText) {
-                            start.linkTo(taskNameText.start)
-                            top.linkTo(taskNameText.bottom, margin = 5.dp)
-                        }, fontFamily = com.example.taskmate.home.fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                            fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 1
-                        )
-
-                        Text(formatNotificationTime(task.timestamp), modifier = Modifier.constrainAs(timeText) {
-                            end.linkTo(parent.end, margin = 15.dp)
-                            top.linkTo(taskNameText.top)
-                        }, fontFamily = com.example.taskmate.home.fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                            fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C)
-                        )
-                    }
+            items(items = notifications, key = { it.id }) { task ->
+                val dismissState = swipeStates.getOrPut(task.id) {
+                    rememberSwipeToDismissBoxState(SwipeToDismissBoxValue.Settled)
                 }
+
+                LaunchedEffect(dismissState) {
+                    snapshotFlow { dismissState.currentValue }
+                        .collect { value ->
+                            if (value == SwipeToDismissBoxValue.EndToStart) {
+                                // Trigger deletion
+                                pendingDelete = task
+                            }
+                        }
+                }
+
+                SwipeToDismissBox(
+                    state = dismissState,
+                    enableDismissFromStartToEnd = false,
+                    enableDismissFromEndToStart = true,
+                    backgroundContent = {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 20.dp)
+                                .background(
+                                    color = Color(0xFFFF4F4F),
+                                    shape = RoundedCornerShape(15.dp)
+                                ),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.remove_icon),
+                                contentDescription = "Delete",
+                                tint = Color(0xFFEEE9FF),
+                                modifier = Modifier.size(46.dp).padding(end = 24.dp)
+                            )
+                        }
+                    },
+                    content = {
+                        ElevatedCard(elevation = CardDefaults.cardElevation(
+                            defaultElevation = 0.dp
+                        ), colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFFFFFFF)
+                        ), modifier = Modifier.padding(horizontal = 20.dp).height(68.dp).fillMaxWidth().shadow(
+                            elevation = 12.dp,
+                            shape = RoundedCornerShape(15.dp),
+                            ambientColor = Color(0xFFFFFFFF).copy(alpha = 0.2f),
+                            spotColor = Color(0xFFFFFFFF).copy(alpha = 0.4f)
+                        ),shape = RoundedCornerShape(15.dp)) {
+                            ConstraintLayout(modifier = Modifier.fillMaxSize()) {
+
+                                val (iconBox, taskNameText, deadlineText, timeText) = createRefs()
+
+                                Box(modifier = Modifier.constrainAs(iconBox) {
+                                    top.linkTo(parent.top)
+                                    start.linkTo(parent.start, margin = 15.dp)
+                                    bottom.linkTo(parent.bottom)
+                                }.size(34.dp).background(Color(task.iconBg.toULong()),
+                                    shape = RoundedCornerShape(9.dp)),
+                                    contentAlignment = Alignment.Center
+                                )  {
+                                    Image(modifier = Modifier.size(20.dp), painter = painterResource(task.icon), contentDescription = "briefcase")
+                                }
+
+                                Text(task.title, modifier = Modifier.constrainAs(taskNameText) {
+                                    top.linkTo(parent.top, margin = 16.dp)
+                                    start.linkTo(iconBox.end, margin = 12.dp)
+                                }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
+                                    fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF24252C), maxLines = 1
+                                )
+
+                                Text(task.message, modifier = Modifier.constrainAs(deadlineText) {
+                                    start.linkTo(taskNameText.start)
+                                    top.linkTo(taskNameText.bottom, margin = 5.dp)
+                                    bottom.linkTo(parent.bottom, margin = 14.dp)
+                                    width = Dimension.fillToConstraints
+                                    end.linkTo(parent.end, margin = 15.dp)
+                                }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
+                                    fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 2
+                                )
+
+                                Text(formatNotificationTime(task.timestamp), modifier = Modifier.constrainAs(timeText) {
+                                    end.linkTo(parent.end, margin = 15.dp)
+                                    top.linkTo(taskNameText.top)
+                                }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
+                                    fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C)
+                                )
+                            }
+                        }
+                    }
+                )
+            }
+        }
+
+        LaunchedEffect(pendingDelete) {
+            pendingDelete?.let { task ->
+                NotificationStore.removeNotification(context, task.id)
+
+                snackbarHostState.showSnackbar(
+                    message = "Notification deleted",
+                    duration = SnackbarDuration.Short
+                )
+
+                swipeStates[task.id]?.reset()
+                pendingDelete = null
             }
         }
     }

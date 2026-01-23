@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -79,7 +80,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 object UserPrefs {
-
     private val KEY_USER_PROFILE = stringPreferencesKey("user_profile")
     private val gson = Gson()
 
@@ -116,6 +116,7 @@ fun ProfileScreen(snackbarHostState: SnackbarHostState) {
     LaunchedEffect(Unit) {
         savedUser = UserPrefs.getUser(context)
     }
+    Log.d("User", savedUser.toString())
 
     var name by remember { mutableStateOf(savedUser?.name ?: "") }
     var email by remember { mutableStateOf(savedUser?.email ?: "") }
@@ -150,10 +151,13 @@ fun ProfileScreen(snackbarHostState: SnackbarHostState) {
         ) { result ->
             if (result.resultCode == Activity.RESULT_OK && result.data != null) {
                 val resultUri = UCrop.getOutput(result.data!!)
-                resultUri?.let {
-                    profileImageUri = it.toString()
+                resultUri?.let { cacheUri ->
+                    val permanentUri = copyUriToInternalStorage(context, cacheUri)
+
+                    profileImageUri = permanentUri.toString()
+
                     scope.launch {
-                        UserPrefs.updateProfileImage(context, it.toString())
+                        UserPrefs.updateProfileImage(context, permanentUri.toString())
                     }
                 }
             }
@@ -777,6 +781,20 @@ fun ProfileScreen(snackbarHostState: SnackbarHostState) {
             }
         }
     }
+}
+
+private fun copyUriToInternalStorage(context: Context, uri: Uri): Uri {
+    val inputStream = context.contentResolver.openInputStream(uri)!!
+    val file = File(
+        context.filesDir,
+        "profile_${System.currentTimeMillis()}.jpg"
+    )
+
+    file.outputStream().use { output ->
+        inputStream.copyTo(output)
+    }
+
+    return Uri.fromFile(file)
 }
 
 private fun calculateAge(birthDate: LocalDate): Int {

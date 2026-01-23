@@ -51,7 +51,7 @@ fun SplashScreen() {
                 )
             )
     ) {
-        Image(painter = painterResource(R.drawable.logo), contentDescription = "Logo",
+        Image(painter = painterResource(R.drawable.round_logo), contentDescription = "Logo",
             modifier = Modifier.align(Alignment.Center).size(82.dp))
     }
 }
