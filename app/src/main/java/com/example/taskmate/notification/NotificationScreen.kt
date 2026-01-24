@@ -4,6 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -129,6 +130,8 @@ class TaskDeadlineWorker(context: Context, params: WorkerParameters) : Coroutine
         val taskIcon = inputData.getInt("taskIcon",0)
         val taskIconBG = inputData.getLong("taskIconBG",0L)
 
+        Log.d("TaskWorker", "Worker executed for task: $taskName")
+
         if (progressStatus == "Completed") {
             return Result.success()
         }
@@ -248,6 +251,9 @@ fun getTaskNotificationMessage(endMillis: Long): String {
         end.toLocalDate() == now.toLocalDate().plusDays(1) ->
             "Ends tomorrow at ${formatTime(endMillis)}"
 
+        duration.toMinutes() < 60 ->
+            "Ending in ${duration.toMinutes()} minutes"
+
         // 📆 Ends later
         else ->
             "Ends on ${formatDate(endMillis)}"
@@ -295,11 +301,15 @@ fun scheduleTaskEndDateNotification(context: Context, task: Tasks) {
         .addTag(task.id)
         .build()
 
+
+
     WorkManager.getInstance(context).enqueueUniqueWork(
         task.id,
         androidx.work.ExistingWorkPolicy.REPLACE,
         work
     )
+
+    Log.e("TaskSchedule", "WorkManager enqueue called")
 }
 
 fun cancelTaskNotifications(context: Context, taskId: String) {
@@ -407,7 +417,7 @@ fun NotificationScreen(snackbarHostState: SnackbarHostState) {
                         )
                     }
                 } }, contentAlignment = Alignment.Center) {
-            Text("Clear All", fontSize = 14.sp, lineHeight = 17.sp, fontFamily = com.example.taskmate.home.fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
+            Text("Clear All", fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
                 color = Color(0xFF5F33E1)
             )
         }

@@ -364,7 +364,6 @@ private fun ProfileView(modifier: Modifier,modifier2: Modifier,modifier3: Modifi
 @Composable
 private fun TodayTaskProgress(modifier: Modifier, navController: NavController) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
     val today = LocalDate.now()
 

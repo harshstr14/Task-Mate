@@ -1,9 +1,18 @@
 package com.example.taskmate
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -62,6 +71,9 @@ import com.example.taskmate.search.SearchScreen
 import com.example.taskmate.tasksscreen.TasksScreen
 import com.example.taskmate.ui.theme.TaskMateTheme
 import com.example.taskmate.updatetask.UpdateTaskScreen
+import android.os.Build
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 
 class MainScreen : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -74,6 +86,20 @@ class MainScreen : ComponentActivity() {
         }
 
         NotificationHelper.createChannel(this)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    101
+                )
+            }
+        }
     }
 }
 
@@ -149,7 +175,45 @@ fun Main_Screen() {
         NavHost(
             navController = navController,
             startDestination = BottomNavRoute.Home.route,
-            modifier = Modifier.padding(paddingValues)
+            modifier = Modifier.padding(paddingValues),
+
+            enterTransition = {
+                scaleIn(
+                    initialScale = 0.92f,
+                    animationSpec = tween(
+                        durationMillis = 320,
+                        easing = FastOutSlowInEasing
+                    )
+                ) + fadeIn(
+                    animationSpec = tween(220)
+                )
+            },
+
+            exitTransition = {
+                scaleOut(
+                    targetScale = 1.05f,
+                    animationSpec = tween(
+                        durationMillis = 220,
+                        easing = FastOutLinearInEasing
+                    )
+                ) + fadeOut(
+                    animationSpec = tween(160)
+                )
+            },
+
+            popEnterTransition = {
+                scaleIn(
+                    initialScale = 0.95f,
+                    animationSpec = tween(300)
+                ) + fadeIn()
+            },
+
+            popExitTransition = {
+                scaleOut(
+                    targetScale = 0.92f,
+                    animationSpec = tween(220)
+                ) + fadeOut()
+            }
         ) {
             composable(BottomNavRoute.Home.route) {
                 HomeScreen(navController)  // ⬅ current Home UI
@@ -228,6 +292,7 @@ private fun BottomNavBar(navController: NavController) {
                     navController.navigate(BottomNavRoute.Home.route) {
                         popUpTo(navController.graph.startDestinationId)
                         launchSingleTop = true
+                        restoreState = true
                     }
 
                 }
@@ -245,6 +310,7 @@ private fun BottomNavBar(navController: NavController) {
                     navController.navigate(BottomNavRoute.Calendar.route) {
                         popUpTo(navController.graph.startDestinationId)
                         launchSingleTop = true
+                        restoreState = true
                     }
                 }
             }) {
@@ -261,6 +327,7 @@ private fun BottomNavBar(navController: NavController) {
                     navController.navigate(BottomNavRoute.Notification.route) {
                         popUpTo(navController.graph.startDestinationId)
                         launchSingleTop = true
+                        restoreState = true
                     }
                 }
             }) {
@@ -277,6 +344,7 @@ private fun BottomNavBar(navController: NavController) {
                     navController.navigate(BottomNavRoute.Search.route) {
                         popUpTo(navController.graph.startDestinationId)
                         launchSingleTop = true
+                        restoreState = true
                     }
                 }
             }) {

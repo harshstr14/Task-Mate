@@ -877,11 +877,19 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
                         }
                     }
 
-                    if (finalProgress == 100) {
-                        cancelTaskNotifications(context, task.id)
-                    }
-                    scheduleTaskEndDateNotification(context, updatedTask)
+                    Log.e("TaskSchedule", "Enqueuing WorkManager job")
+                    scheduleTaskEndDateNotification(context.applicationContext, updatedTask)
                 }
+
+                if (finalProgress == 100) {
+                    cancelTaskNotifications(context, task.id)
+                }
+
+                NotificationHelper.show(
+                    context,
+                    "Test Notification",
+                    "If you see this, notifications work"
+                )
 
                 scope.launch {
                     snackbarHostState.showSnackbar(
