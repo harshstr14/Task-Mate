@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
                     val intent = Intent(this, MainScreen()::class.java)
                     startActivity(intent)
                     finish()
-                },1200)
+                },800)
             }
         }
     }
@@ -51,8 +51,8 @@ fun SplashScreen() {
                 )
             )
     ) {
-        Image(painter = painterResource(R.drawable.round_logo), contentDescription = "Logo",
-            modifier = Modifier.align(Alignment.Center).size(82.dp))
+        Image(painter = painterResource(R.drawable.logo), contentDescription = "Logo",
+            modifier = Modifier.align(Alignment.Center).size(230.dp))
     }
 }
 

@@ -229,7 +229,7 @@ fun TasksScreen(navController: NavHostController, snackbarHostState: SnackbarHos
                                     start.linkTo(parent.start, margin = 15.dp)
                                 }.size(14.dp), painter = painterResource(R.drawable.clock), contentDescription = "clock Icon")
 
-                                Text(formatTime(task.time), modifier = Modifier.constrainAs(taskTimeText) {
+                                Text(formatTime(task.createdAt), modifier = Modifier.constrainAs(taskTimeText) {
                                     top.linkTo(clockIcon.top)
                                     start.linkTo(clockIcon.end, margin = 2.dp)
                                     bottom.linkTo(clockIcon.bottom)

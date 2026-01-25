@@ -76,7 +76,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 val Context.notificationDataStore by preferencesDataStore(
@@ -164,33 +163,6 @@ class TaskDeadlineWorker(context: Context, params: WorkerParameters) : Coroutine
     }
 }
 
-object DateConverter {
-    private val formatter =
-        DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
-
-    fun startDateToMillis(date: String): Long {
-        val localDate = LocalDate.parse(date, formatter)
-        return localDate
-            .atStartOfDay(ZoneId.systemDefault())
-            .toInstant()
-            .toEpochMilli()
-    }
-
-    fun endDateWithCreationTime(endDate: String, createdAtMillis: Long): Long {
-        val endLocalDate = LocalDate.parse(endDate, formatter)
-
-        val creationTime = Instant.ofEpochMilli(createdAtMillis)
-            .atZone(ZoneId.systemDefault())
-            .toLocalTime()
-
-        return endLocalDate
-            .atTime(creationTime)
-            .atZone(ZoneId.systemDefault())
-            .toInstant()
-            .toEpochMilli()
-    }
-}
-
 object NotificationHelper {
     private const val CHANNEL_ID = "task_channel"
 
@@ -275,7 +247,7 @@ fun formatDate(millis: Long): String {
 }
 
 fun scheduleTaskEndDateNotification(context: Context, task: Tasks) {
-    val endMillis = DateConverter.endDateWithCreationTime(task.endDate, task.time)
+    val endMillis = task.endAt
 
     val now = System.currentTimeMillis()
     val notifyTime = endMillis - TimeUnit.HOURS.toMillis(4)
@@ -283,7 +255,10 @@ fun scheduleTaskEndDateNotification(context: Context, task: Tasks) {
     val delay = when {
         notifyTime > now -> notifyTime - now          // normal case
         endMillis > now -> TimeUnit.SECONDS.toMillis(5)
-        else -> return                                 // task already ended
+        else -> {
+            Log.e("TaskSchedule", "Task already ended. endMillis=$endMillis now=$now")
+            return
+        }
     }
 
     val data = workDataOf(
@@ -301,15 +276,11 @@ fun scheduleTaskEndDateNotification(context: Context, task: Tasks) {
         .addTag(task.id)
         .build()
 
-
-
     WorkManager.getInstance(context).enqueueUniqueWork(
         task.id,
         androidx.work.ExistingWorkPolicy.REPLACE,
         work
     )
-
-    Log.e("TaskSchedule", "WorkManager enqueue called")
 }
 
 fun cancelTaskNotifications(context: Context, taskId: String) {
@@ -333,11 +304,7 @@ suspend fun notifyOverdueTasks(context: Context, tasks: List<Tasks>) {
 
     tasks.forEach { task ->
 
-        val endMillis =
-            DateConverter.endDateWithCreationTime(
-                task.endDate,
-                task.time
-            )
+        val endMillis = task.endAt
 
         if (task.progressStatus != "Completed" && now > endMillis) {
 
@@ -483,7 +450,7 @@ fun NotificationScreen(snackbarHostState: SnackbarHostState) {
                                 painter = painterResource(R.drawable.remove_icon),
                                 contentDescription = "Delete",
                                 tint = Color(0xFFEEE9FF),
-                                modifier = Modifier.size(46.dp).padding(end = 24.dp)
+                                modifier = Modifier.size(44.dp).padding(end = 24.dp)
                             )
                         }
                     },
@@ -492,7 +459,7 @@ fun NotificationScreen(snackbarHostState: SnackbarHostState) {
                             defaultElevation = 0.dp
                         ), colors = CardDefaults.cardColors(
                             containerColor = Color(0xFFFFFFFF)
-                        ), modifier = Modifier.padding(horizontal = 20.dp).height(68.dp).fillMaxWidth().shadow(
+                        ), modifier = Modifier.padding(horizontal = 20.dp).height(72.dp).fillMaxWidth().shadow(
                             elevation = 12.dp,
                             shape = RoundedCornerShape(15.dp),
                             ambientColor = Color(0xFFFFFFFF).copy(alpha = 0.2f),
@@ -514,7 +481,7 @@ fun NotificationScreen(snackbarHostState: SnackbarHostState) {
                                 }
 
                                 Text(task.title, modifier = Modifier.constrainAs(taskNameText) {
-                                    top.linkTo(parent.top, margin = 16.dp)
+                                    top.linkTo(parent.top, margin = 12.dp)
                                     start.linkTo(iconBox.end, margin = 12.dp)
                                 }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                                     fontSize = 14.sp, lineHeight = 17.sp, color = Color(0xFF24252C), maxLines = 1
@@ -522,10 +489,10 @@ fun NotificationScreen(snackbarHostState: SnackbarHostState) {
 
                                 Text(task.message, modifier = Modifier.constrainAs(deadlineText) {
                                     start.linkTo(taskNameText.start)
-                                    top.linkTo(taskNameText.bottom, margin = 5.dp)
-                                    bottom.linkTo(parent.bottom, margin = 14.dp)
+                                    top.linkTo(taskNameText.bottom, margin = 8.dp)
+                                    bottom.linkTo(parent.bottom, margin = 8.dp)
                                     width = Dimension.fillToConstraints
-                                    end.linkTo(parent.end, margin = 15.dp)
+                                    end.linkTo(parent.end, margin = 25.dp)
                                 }, fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
                                     fontSize = 11.sp, lineHeight = 14.sp, color = Color(0xFF6E6A7C), maxLines = 2
                                 )

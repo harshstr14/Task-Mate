@@ -457,7 +457,7 @@ fun CalendarScreen(navController: NavController) {
                             start.linkTo(parent.start, margin = 15.dp)
                         }.size(14.dp), painter = painterResource(R.drawable.clock), contentDescription = "clock Icon")
 
-                        Text(formatTime(task.time), modifier = Modifier.constrainAs(taskTimeText) {
+                        Text(formatTime(task.createdAt), modifier = Modifier.constrainAs(taskTimeText) {
                             top.linkTo(taskTimeIcon.top)
                             start.linkTo(taskTimeIcon.end, margin = 2.dp)
                             bottom.linkTo(taskTimeIcon.bottom)

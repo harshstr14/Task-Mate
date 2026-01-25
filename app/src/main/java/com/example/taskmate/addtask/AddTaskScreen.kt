@@ -285,7 +285,7 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
         }
 
         Column(modifier = Modifier.constrainAs(taskColumn) {
-            top.linkTo(taskGroupBox.bottom, margin = (-15).dp)
+            top.linkTo(taskGroupBox.bottom, margin = 12.dp)
             bottom.linkTo(addButtonRef.top, margin = (-15).dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
@@ -295,7 +295,7 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
                 val(taskGroupNameBox, taskNameBox, descriptionBox, startDateBox, endDateBox) = createRefs()
 
                 Box(modifier = Modifier.constrainAs(taskGroupNameBox) {
-                    top.linkTo(parent.top, margin = 35.dp)
+                    top.linkTo(parent.top, margin = 12.dp)
                     start.linkTo(parent.start)
                     end.linkTo(parent.end)
                 }.padding(horizontal = 20.dp).height(63.dp).fillMaxWidth().shadow(
@@ -639,9 +639,18 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
                     return@Button
                 }
 
-                val task = Tasks(
+            val now = System.currentTimeMillis()
+            val endAtMillis = endDate!!
+                .atTime(23, 59, 59)
+                .atZone(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+
+            val task = Tasks(
                     id = System.currentTimeMillis().toString(),
-                    time = System.currentTimeMillis(),
+                    createdAt = now,
+                    updatedAt = now,
+                    endAt = endAtMillis,
                     taskGroup = selectedGroup,
                     taskGroupName = taskGroupName,
                     taskName = taskName,
@@ -689,7 +698,8 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
             ) , shape = RoundedCornerShape(10.dp)) {
 
             Text("Add Task", fontFamily = fonts, fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Normal,
-                fontSize = 18.sp)
+                fontSize = 18.sp
+            )
         }
     }
 

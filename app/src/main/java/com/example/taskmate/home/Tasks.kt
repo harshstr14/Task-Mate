@@ -2,7 +2,9 @@ package com.example.taskmate.home
 
 data class Tasks(
     val id: String,
-    val time: Long,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val endAt: Long,
     val taskGroup: String,
     val taskGroupName: String,
     val taskName: String,

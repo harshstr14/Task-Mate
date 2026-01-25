@@ -3,7 +3,7 @@
 
     <style name="Theme.MySplashScreen" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@drawable/bg_gradient</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/round_logo</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/logo</item>
         <item name="postSplashScreenTheme">@style/Theme.TaskMate</item>
     </style>
 

@@ -486,7 +486,7 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
         }
 
         Column(modifier = Modifier.constrainAs(formColumn) {
-            top.linkTo(taskProgressBox.bottom, margin = (-15).dp)
+            top.linkTo(taskProgressBox.bottom, margin = 12.dp)
             bottom.linkTo(updateTaskButton.top, margin = (-15).dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
@@ -496,7 +496,7 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
                 val (taskGroupBox, taskNameBox, descriptionBox, startDateBox, endDateBox) = createRefs()
 
                 Box(modifier = Modifier.constrainAs(taskGroupBox) {
-                    top.linkTo(parent.top, margin = 35.dp)
+                    top.linkTo(parent.top, margin = 12.dp)
                     start.linkTo(parent.start)
                     end.linkTo(parent.end)
                 }.padding(horizontal = 20.dp).height(63.dp).fillMaxWidth().shadow(
@@ -841,10 +841,17 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
                     end = endDate!!,
                     completedDates = completedDates
                 )
+                val endAtMillis = endDate!!
+                    .atTime(23, 59, 59)
+                    .atZone(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
 
                 val updatedTask = Tasks(
                     id = task?.id ?: return@Button,
-                    time = System.currentTimeMillis(),
+                    createdAt = task.createdAt,
+                    updatedAt = System.currentTimeMillis(),
+                    endAt = endAtMillis,
                     taskGroup = selectedGroup,
                     taskGroupName = taskGroupName,
                     taskName = taskName,
@@ -877,19 +884,12 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
                         }
                     }
 
-                    Log.e("TaskSchedule", "Enqueuing WorkManager job")
                     scheduleTaskEndDateNotification(context.applicationContext, updatedTask)
                 }
 
                 if (finalProgress == 100) {
                     cancelTaskNotifications(context, task.id)
                 }
-
-                NotificationHelper.show(
-                    context,
-                    "Test Notification",
-                    "If you see this, notifications work"
-                )
 
                 scope.launch {
                     snackbarHostState.showSnackbar(
