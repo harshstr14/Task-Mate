@@ -639,29 +639,29 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
                     return@Button
                 }
 
-            val now = System.currentTimeMillis()
-            val endAtMillis = endDate!!
-                .atTime(23, 59, 59)
-                .atZone(ZoneId.systemDefault())
-                .toInstant()
-                .toEpochMilli()
+                val now = System.currentTimeMillis()
+                val endAtMillis = endDate!!
+                    .atTime(23, 59, 59)
+                    .atZone(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
 
-            val task = Tasks(
-                    id = System.currentTimeMillis().toString(),
-                    createdAt = now,
-                    updatedAt = now,
-                    endAt = endAtMillis,
-                    taskGroup = selectedGroup,
-                    taskGroupName = taskGroupName,
-                    taskName = taskName,
-                    description = description,
-                    startDate = startDateText,
-                    endDate = endDateText,
-                    completedDates = emptyList(),
-                    icon = selectedGroupIcon,
-                    iconBg = selectedGroupBG.value.toLong(),
-                    progress = 0,
-                    progressStatus = "To Do"
+                val task = Tasks(
+                        id = System.currentTimeMillis().toString(),
+                        createdAt = now,
+                        updatedAt = now,
+                        endAt = endAtMillis,
+                        taskGroup = selectedGroup,
+                        taskGroupName = taskGroupName,
+                        taskName = taskName,
+                        description = description,
+                        startDate = startDateText,
+                        endDate = endDateText,
+                        completedDates = emptyList(),
+                        icon = selectedGroupIcon,
+                        iconBg = selectedGroupBG.value.toLong(),
+                        progress = 0,
+                        progressStatus = "To Do"
                 )
 
                 scope.launch {

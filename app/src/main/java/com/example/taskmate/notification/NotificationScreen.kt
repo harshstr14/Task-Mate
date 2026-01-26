@@ -206,7 +206,6 @@ fun getTaskNotificationMessage(endMillis: Long): String {
     val hoursLeft = duration.toHours()
 
     return when {
-
         // 🔴 Already overdue
         endMillis < nowMillis ->
             "Ended on ${formatDate(endMillis)} – Please complete it"
