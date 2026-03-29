@@ -51,6 +51,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -67,6 +68,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import coil.compose.AsyncImage
 import com.example.taskmate.R
 import com.example.taskmate.home.fonts
+import com.example.taskmate.pressScale
 import com.example.taskmate.search.recentSearchDataStore
 import com.google.gson.Gson
 import com.yalantis.ucrop.UCrop
@@ -108,10 +110,13 @@ object UserPrefs {
 }
 
 @Composable
-fun ProfileScreen(snackbarHostState: SnackbarHostState) {
+fun ProfileScreen(snackBarHostState: SnackbarHostState) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var savedUser by remember { mutableStateOf<UserProfile?>(null) }
+
+    val (changeInteraction, changeScale) = pressScale()
+    val (calendarInteraction, calendarScale) = pressScale()
 
     LaunchedEffect(Unit) {
         savedUser = UserPrefs.getUser(context)
@@ -135,7 +140,7 @@ fun ProfileScreen(snackbarHostState: SnackbarHostState) {
     }
 
     LaunchedEffect(savedUser) {
-        savedUser?.let {
+        savedUser?.let { it ->
             name = it.name
             email = it.email
             phoneNo = it.phone
@@ -228,7 +233,10 @@ fun ProfileScreen(snackbarHostState: SnackbarHostState) {
             top.linkTo(profileImage.bottom, margin = (-24).dp)
             start.linkTo(profileImage.start)
             end.linkTo(profileImage.end)
-        }.clickable {
+        }.clickable(
+            interactionSource = changeInteraction,
+            indication = null
+        ) {
             imagePickerLauncher.launch("image/*")
         }.shadow(
             elevation = 12.dp,
@@ -239,7 +247,12 @@ fun ProfileScreen(snackbarHostState: SnackbarHostState) {
             shape = RoundedCornerShape(15.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Text("Change", modifier = Modifier.padding(top = 4.dp, bottom = 4.dp, start = 10.dp, end = 10.dp),
+            Text(modifier = Modifier.padding(top = 4.dp, bottom = 4.dp, start = 10.dp, end = 10.dp)
+                .graphicsLayer {
+                    scaleX = changeScale
+                    scaleY = changeScale
+                },
+                text = "Change",
                 fontSize = 12.sp, lineHeight = 17.sp, fontFamily = fonts,
                 fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
                 color = Color(0xFFFFFFFF)
@@ -562,8 +575,10 @@ fun ProfileScreen(snackbarHostState: SnackbarHostState) {
                                 top.linkTo(parent.top)
                                 bottom.linkTo(parent.bottom)
                                 end.linkTo(parent.end, margin = 15.dp)
-                            }.clickable { showDatePicker = true}, tint = Color(0xFF5F33E1)
-
+                            }.clickable(
+                                interactionSource = calendarInteraction,
+                                indication = null
+                            ) { showDatePicker = true}, tint = Color(0xFF5F33E1)
                         )
                     }
                 }
@@ -653,7 +668,7 @@ fun ProfileScreen(snackbarHostState: SnackbarHostState) {
 
                 if (errorMessage != null) {
                     scope.launch {
-                        snackbarHostState.showSnackbar(
+                        snackBarHostState.showSnackbar(
                             message = errorMessage,
                             duration = SnackbarDuration.Short
                         )
@@ -673,7 +688,7 @@ fun ProfileScreen(snackbarHostState: SnackbarHostState) {
                 scope.launch {
                     UserPrefs.saveUser(context, user)
 
-                    snackbarHostState.showSnackbar(
+                    snackBarHostState.showSnackbar(
                         message = "Profile updated successfully",
                         duration = SnackbarDuration.Short
                     )
@@ -813,6 +828,6 @@ fun Context.findActivity(): Activity {
 @Preview(showSystemUi = true)
 @Composable
 private fun ShowProfileScreen() {
-    val snackbarHostState = SnackbarHostState()
-    ProfileScreen(snackbarHostState)
+    val snackBarHostState = SnackbarHostState()
+    ProfileScreen(snackBarHostState)
 }

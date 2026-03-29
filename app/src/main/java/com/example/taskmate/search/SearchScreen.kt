@@ -39,6 +39,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -62,6 +63,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.taskmate.R
 import com.example.taskmate.home.TaskPrefs
 import com.example.taskmate.home.fonts
+import com.example.taskmate.pressScale
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.delay
@@ -123,9 +125,11 @@ object RecentSearchPrefs {
 }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostState) {
+fun SearchScreen(navController: NavController, snackBarHostState: SnackbarHostState) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    val (clearInteraction, clearScale) = pressScale()
 
     var searchText by remember { mutableStateOf(TextFieldValue("")) }
 
@@ -218,10 +222,13 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
                         top.linkTo(searchBar.bottom, margin = 15.dp)
                         end.linkTo(parent.end, margin = 15.dp)
                     }.size(72.dp,20.dp).clip(RoundedCornerShape(6.dp))
-                        .clickable {
+                        .clickable(
+                            interactionSource = clearInteraction,
+                            indication = null
+                        ) {
                             if (recentSearches.isEmpty()) {
                                 scope.launch {
-                                    snackbarHostState.showSnackbar(
+                                    snackBarHostState.showSnackbar(
                                         message = "No recent search to clear",
                                         duration = SnackbarDuration.Short
                                     )
@@ -229,14 +236,19 @@ fun SearchScreen(navController: NavController, snackbarHostState: SnackbarHostSt
                             } else {
                                 scope.launch {
                                     RecentSearchPrefs.clearRecentSearches(context)
-                                    snackbarHostState.showSnackbar(
+                                    snackBarHostState.showSnackbar(
                                         message = "Search history cleared",
                                         duration = SnackbarDuration.Short
                                     )
                                 }
                             }
-                        }, contentAlignment = Alignment.Center) {
-                        Text("Clear All", fontSize = 14.sp, lineHeight = 17.sp,
+                        }, contentAlignment = Alignment.Center)
+                    {
+                        Text(modifier = Modifier.graphicsLayer {
+                            scaleX = clearScale
+                            scaleY = clearScale
+                        },
+                            text = "Clear All", fontSize = 14.sp, lineHeight = 17.sp,
                             fontFamily = fonts, fontWeight = FontWeight.Bold,
                             fontStyle = FontStyle.Normal, color = Color(0xFF5F33E1)
                         )
@@ -493,6 +505,6 @@ private  fun SearchBar(fontFamily: FontFamily,
 @Composable
 private fun ShowSearchScreen() {
     val navController = rememberNavController()
-    val snackbarHostState = SnackbarHostState()
-    SearchScreen(navController,snackbarHostState)
+    val snackBarHostState = SnackbarHostState()
+    SearchScreen(navController,snackBarHostState)
 }

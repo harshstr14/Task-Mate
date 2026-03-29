@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
@@ -66,6 +67,7 @@ import com.android.identity.util.UUID
 import com.example.taskmate.R
 import com.example.taskmate.home.Tasks
 import com.example.taskmate.home.fonts
+import com.example.taskmate.pressScale
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
@@ -331,9 +333,11 @@ suspend fun notifyOverdueTasks(context: Context, tasks: List<Tasks>) {
 }
 
 @Composable
-fun NotificationScreen(snackbarHostState: SnackbarHostState) {
+fun NotificationScreen(snackBarHostState: SnackbarHostState) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    val (clearInteraction, clearScale) = pressScale()
 
     var pendingDelete by remember { mutableStateOf<StoredNotification?>(null) }
     val swipeStates = remember { mutableMapOf<String, SwipeToDismissBoxState>() }
@@ -360,14 +364,19 @@ fun NotificationScreen(snackbarHostState: SnackbarHostState) {
             color = Color(0xFF24252C)
         )
 
-        Box(modifier = Modifier.constrainAs(clearAllButton) {
-            top.linkTo(titleText.bottom, margin = 15.dp)
-            end.linkTo(parent.end, margin = 20.dp)
-        }.size(72.dp,20.dp).clip(RoundedCornerShape(6.dp))
-            .clickable {
+        Box(
+            modifier = Modifier.constrainAs(clearAllButton) {
+                    top.linkTo(titleText.bottom, margin = 15.dp)
+                    end.linkTo(parent.end, margin = 20.dp)
+            }.size(72.dp,20.dp)
+             .clip(RoundedCornerShape(6.dp))
+            .clickable(
+                interactionSource = clearInteraction,
+                indication = null
+            ) {
                 if (notifications.isEmpty()) {
                     scope.launch {
-                        snackbarHostState.showSnackbar(
+                        snackBarHostState.showSnackbar(
                             message = "No Notification to clear",
                             duration = SnackbarDuration.Short
                         )
@@ -377,14 +386,20 @@ fun NotificationScreen(snackbarHostState: SnackbarHostState) {
                         NotificationStore.clear(context)
                         swipeStates.clear()
 
-                        snackbarHostState.showSnackbar(
+                        snackBarHostState.showSnackbar(
                             message = "Notifications cleared",
                             duration = SnackbarDuration.Short
                         )
                     }
-                } }, contentAlignment = Alignment.Center) {
-            Text("Clear All", fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
-                color = Color(0xFF5F33E1)
+                }
+            }, contentAlignment = Alignment.Center)
+        {
+            Text(modifier = Modifier.graphicsLayer {
+                scaleX = clearScale
+                scaleY = clearScale
+            },  text = "Clear All", fontSize = 14.sp, lineHeight = 17.sp,
+                fontFamily = fonts, fontWeight = FontWeight.Bold,
+                fontStyle = FontStyle.Normal, color = Color(0xFF5F33E1)
             )
         }
 
@@ -513,7 +528,7 @@ fun NotificationScreen(snackbarHostState: SnackbarHostState) {
             pendingDelete?.let { task ->
                 NotificationStore.removeNotification(context, task.id)
 
-                snackbarHostState.showSnackbar(
+                snackBarHostState.showSnackbar(
                     message = "Notification deleted",
                     duration = SnackbarDuration.Short
                 )
@@ -546,6 +561,6 @@ private fun formatNotificationTime(timestamp: Long): String {
 @Preview(showSystemUi = true)
 @Composable
 private fun ShowNotificationScreen() {
-    val snackbarHostState = SnackbarHostState()
-    NotificationScreen(snackbarHostState)
+    val snackBarHostState = SnackbarHostState()
+    NotificationScreen(snackBarHostState)
 }

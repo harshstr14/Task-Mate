@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
@@ -57,15 +58,18 @@ import com.example.taskmate.home.TaskGroup
 import com.example.taskmate.home.TaskPrefs
 import com.example.taskmate.home.Tasks
 import com.example.taskmate.home.fonts
+import com.example.taskmate.pressScale
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun TasksScreen(navController: NavHostController, snackbarHostState: SnackbarHostState, taskGroup: String?) {
+fun TasksScreen(navController: NavHostController, snackBarHostState: SnackbarHostState, taskGroup: String?) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    val (clearInteraction, clearScale) = pressScale()
 
     var pendingDelete by remember { mutableStateOf<Tasks?>(null) }
     val swipeStates = remember { mutableMapOf<String, SwipeToDismissBoxState>() }
@@ -97,7 +101,7 @@ fun TasksScreen(navController: NavHostController, snackbarHostState: SnackbarHos
                 tint = Color(0xFF5F33E1), modifier = Modifier.constrainAs(emptyTasksIcon) {
                     top.linkTo(parent.top)
                     bottom.linkTo(parent.bottom)
-                    start.linkTo(parent.start, margin = (-3).dp)
+                    start.linkTo(parent.start)
                     end.linkTo(parent.end)
                 }.size(92.dp)
             )
@@ -130,10 +134,13 @@ fun TasksScreen(navController: NavHostController, snackbarHostState: SnackbarHos
             top.linkTo(titleTasks.bottom, margin = 15.dp)
             end.linkTo(parent.end, margin = 20.dp)
         }.size(72.dp,20.dp).clip(RoundedCornerShape(6.dp))
-            .clickable {
+            .clickable(
+                interactionSource = clearInteraction,
+                indication = null
+            ) {
                 if (tasksList.isEmpty()) {
                     scope.launch {
-                        snackbarHostState.showSnackbar(
+                        snackBarHostState.showSnackbar(
                             message = "No tasks to clear",
                             duration = SnackbarDuration.Short
                         )
@@ -141,8 +148,13 @@ fun TasksScreen(navController: NavHostController, snackbarHostState: SnackbarHos
                 } else {
                     showClearAllDialog = true
                 }
-            }, contentAlignment = Alignment.Center) {
-            Text("Clear All", fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
+            }, contentAlignment = Alignment.Center)
+        {
+            Text(modifier = Modifier.graphicsLayer {
+                scaleX = clearScale
+                scaleY = clearScale
+            },
+                text = "Clear All", fontSize = 14.sp, lineHeight = 17.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
                 color = Color(0xFF5F33E1)
             )
         }
@@ -339,7 +351,7 @@ fun TasksScreen(navController: NavHostController, snackbarHostState: SnackbarHos
                                         TaskGroup.DAILY_STUDY -> TaskPrefs.clearDailyStudyTasks(context)
                                     }
 
-                                    snackbarHostState.showSnackbar(
+                                    snackBarHostState.showSnackbar(
                                         message = "All tasks cleared",
                                         duration = SnackbarDuration.Short
                                     )
@@ -378,7 +390,7 @@ fun TasksScreen(navController: NavHostController, snackbarHostState: SnackbarHos
                         TaskGroup.DAILY_STUDY -> TaskPrefs.removeDailyStudyTask(context, task.id) // <- must launch coroutine
                     }
 
-                    snackbarHostState.showSnackbar("Task deleted", duration = SnackbarDuration.Short)
+                    snackBarHostState.showSnackbar("Task deleted", duration = SnackbarDuration.Short)
                 }
                 swipeStates[task.id]?.reset()
                 pendingDelete = null
@@ -398,6 +410,6 @@ private fun formatTime(time: Long): String {
 @Composable
 private fun ShowTasksScreen() {
     val navController = rememberNavController()
-    val snackbarHostState = SnackbarHostState()
-    TasksScreen(navController, snackbarHostState, TaskGroup.WORK)
+    val snackBarHostState = SnackbarHostState()
+    TasksScreen(navController, snackBarHostState, TaskGroup.WORK)
 }

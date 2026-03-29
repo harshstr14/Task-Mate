@@ -46,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -64,6 +65,7 @@ import com.example.taskmate.R
 import com.example.taskmate.home.TaskPrefs
 import com.example.taskmate.home.fonts
 import com.example.taskmate.navigation.BottomNavRoute
+import com.example.taskmate.pressScale
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -78,6 +80,10 @@ fun CalendarScreen(navController: NavController) {
     val context = LocalContext.current
     val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+
+    val (calenderInteraction, calenderScale) = pressScale()
+    val (addInteraction, addScale) = pressScale()
+    val (dateInteraction, dateScale) = pressScale()
 
     val work by TaskPrefs.loadWorkTasks(context).collectAsState(emptyList())
     val personal by TaskPrefs.loadPersonalTasks(context).collectAsState(emptyList())
@@ -166,7 +172,10 @@ fun CalendarScreen(navController: NavController) {
             top.linkTo(parent.top, margin = 20.dp)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
-        }.clickable {
+        }.clickable(
+            interactionSource = dateInteraction,
+            indication = null
+        ) {
             val today = LocalDate.now()
             val nowMonth = YearMonth.from(today)
 
@@ -180,6 +189,9 @@ fun CalendarScreen(navController: NavController) {
                     scrollOffset = -centerOffset.toInt()
                 )
             }
+        }.graphicsLayer {
+            scaleX = dateScale
+            scaleY = dateScale
         }, fontSize = 20.sp, fontFamily = fonts, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Normal,
             color = Color(0xFF24252C)
         )
@@ -210,15 +222,25 @@ fun CalendarScreen(navController: NavController) {
                     top.linkTo(monthTitleText.top)
                     bottom.linkTo(monthTitleText.bottom)
                     end.linkTo(parent.end, margin = 20.dp)
-                }.size(28.dp).clip(RoundedCornerShape(10.dp))
+                }.size(34.dp).clip(RoundedCornerShape(10.dp))
                 .background(Color(0xFF5F33E1))
-                .clickable { navController.navigate(BottomNavRoute.AddTask.route) }
+                .clickable(
+                    interactionSource = addInteraction,
+                    indication = null
+                ) { navController.navigate(BottomNavRoute.AddTask.route) }
         ) {
             Icon(
                 painter = painterResource(R.drawable.add_icon),
                 contentDescription = "add Icon",
                 tint = Color(0xFFEEE9FF),
-                modifier = Modifier.align(Alignment.Center).size(22.dp)
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(24.dp)
+                    .graphicsLayer {
+                        scaleX = addScale
+                        scaleY = addScale
+                    }
+
             )
         }
 
@@ -226,15 +248,24 @@ fun CalendarScreen(navController: NavController) {
             top.linkTo(monthTitleText.top)
             bottom.linkTo(monthTitleText.bottom)
             start.linkTo(parent.start, margin = 20.dp)
-        }.size(28.dp).clip(RoundedCornerShape(10.dp))
+        }.size(34.dp).clip(RoundedCornerShape(10.dp))
             .background(Color(0xFF5F33E1))
-            .clickable { showDatePicker = true }
+            .clickable(
+                interactionSource = calenderInteraction,
+                indication = null
+            ) { showDatePicker = true }
         ) {
             Icon(
                 painter = painterResource(R.drawable.calendar),
                 contentDescription = "add Icon",
                 tint = Color(0xFFEEE9FF),
-                modifier = Modifier.align(Alignment.Center).size(18.dp)
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(20.dp)
+                    .graphicsLayer {
+                        scaleX = calenderScale
+                        scaleY = calenderScale
+                    }
             )
         }
 
@@ -397,7 +428,7 @@ fun CalendarScreen(navController: NavController) {
                 tint = Color(0xFF5F33E1), modifier = Modifier.constrainAs(emptyStateIcon) {
                     top.linkTo(categoryFilterRow.bottom)
                     bottom.linkTo(parent.bottom)
-                    start.linkTo(parent.start, margin = (-3).dp)
+                    start.linkTo(parent.start)
                     end.linkTo(parent.end)
                 }.size(92.dp)
             )

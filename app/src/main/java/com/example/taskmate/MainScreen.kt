@@ -72,6 +72,11 @@ import com.example.taskmate.tasksscreen.TasksScreen
 import com.example.taskmate.ui.theme.TaskMateTheme
 import com.example.taskmate.updatetask.UpdateTaskScreen
 import android.os.Build
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
@@ -106,11 +111,13 @@ class MainScreen : ComponentActivity() {
 @Composable
 fun Main_Screen() {
     val navController = rememberNavController()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val snackBarHostState = remember { SnackbarHostState() }
 
     Scaffold(
         snackbarHost = {
-            SnackbarHost(snackbarHostState) { data ->
+            SnackbarHost(
+                hostState = snackBarHostState
+            ) { data ->
                 val isError = data.visuals.message.contains("Please") ||
                         data.visuals.message.contains("No")
 
@@ -219,19 +226,19 @@ fun Main_Screen() {
                 HomeScreen(navController)  // ⬅ current Home UI
             }
             composable(BottomNavRoute.Profile.route) {
-                ProfileScreen(snackbarHostState = snackbarHostState)
+                ProfileScreen(snackBarHostState = snackBarHostState)
             }
             composable(BottomNavRoute.Calendar.route) {
                 CalendarScreen(navController)
             }
             composable(BottomNavRoute.Notification.route) {
-                NotificationScreen(snackbarHostState = snackbarHostState)
+                NotificationScreen(snackBarHostState = snackBarHostState)
             }
             composable(BottomNavRoute.Search.route) {
-                SearchScreen(navController, snackbarHostState = snackbarHostState)
+                SearchScreen(navController, snackBarHostState = snackBarHostState)
             }
             composable(BottomNavRoute.AddTask.route) {
-                AddTaskScreen(snackbarHostState)
+                AddTaskScreen(snackBarHostState)
             }
             composable(
                 route = BottomNavRoute.UpdateTask.route,
@@ -249,7 +256,7 @@ fun Main_Screen() {
                 val taskGroup = backStackEntry.arguments?.getString("taskGroup")
 
                 UpdateTaskScreen(
-                    snackbarHostState = snackbarHostState,
+                    snackbarHostState = snackBarHostState,
                     taskId = taskId,
                     taskGroup = taskGroup
                 )
@@ -266,7 +273,7 @@ fun Main_Screen() {
 
                 TasksScreen(
                     navController,
-                    snackbarHostState = snackbarHostState,
+                    snackBarHostState = snackBarHostState,
                     taskGroup = taskGroup
                 )
             }
@@ -357,6 +364,25 @@ private fun BottomNavBar(navController: NavController) {
             }
         }
     }
+}
+
+@Composable
+fun pressScale(
+    pressedScale: Float = 1.15f
+): Pair<MutableInteractionSource, Float> {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) pressedScale else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "PressScale"
+    )
+
+    return interactionSource to scale
 }
 
 @Preview(showSystemUi = true)
