@@ -256,7 +256,7 @@ fun Main_Screen() {
                 val taskGroup = backStackEntry.arguments?.getString("taskGroup")
 
                 UpdateTaskScreen(
-                    snackbarHostState = snackBarHostState,
+                    snackBarHostState = snackBarHostState,
                     taskId = taskId,
                     taskGroup = taskGroup
                 )

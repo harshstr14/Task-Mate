@@ -81,7 +81,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
+fun AddTaskScreen(snackBarHostState: SnackbarHostState) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -631,7 +631,7 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
                     description.isBlank() || startDateText == "Select date" || endDateText == "Select date" ||
                     startDate == null || endDate == null || dateError) {
                     scope.launch {
-                        snackbarHostState.showSnackbar(
+                        snackBarHostState.showSnackbar(
                             message = "Please fill all fields",
                             duration = SnackbarDuration.Short
                         )
@@ -687,7 +687,7 @@ fun AddTaskScreen(snackbarHostState: SnackbarHostState) {
                 )
 
                 scope.launch { 
-                    snackbarHostState.showSnackbar(
+                    snackBarHostState.showSnackbar(
                         message = "Task added successfully",
                         duration = SnackbarDuration.Short
                     )
@@ -851,6 +851,6 @@ private fun clearFields(
 @Preview(showSystemUi = true)
 @Composable
 private fun ShowAddTask() {
-    val snackbarHostState = SnackbarHostState()
-    AddTaskScreen(snackbarHostState)
+    val snackBarHostState = SnackbarHostState()
+    AddTaskScreen(snackBarHostState)
 }

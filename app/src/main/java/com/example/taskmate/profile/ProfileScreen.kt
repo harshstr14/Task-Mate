@@ -578,7 +578,11 @@ fun ProfileScreen(snackBarHostState: SnackbarHostState) {
                             }.clickable(
                                 interactionSource = calendarInteraction,
                                 indication = null
-                            ) { showDatePicker = true}, tint = Color(0xFF5F33E1)
+                            ) { showDatePicker = true}
+                                .graphicsLayer {
+                                    scaleX = calendarScale
+                                    scaleY = calendarScale
+                                }, tint = Color(0xFF5F33E1)
                         )
                     }
                 }

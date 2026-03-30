@@ -83,7 +83,6 @@ import com.example.taskmate.addtask.DateType
 import com.example.taskmate.home.TaskGroup
 import com.example.taskmate.home.TaskPrefs
 import com.example.taskmate.home.Tasks
-import com.example.taskmate.notification.NotificationHelper
 import com.example.taskmate.notification.cancelTaskNotifications
 import com.example.taskmate.notification.scheduleTaskEndDateNotification
 import kotlinx.coroutines.launch
@@ -95,7 +94,7 @@ import java.util.Locale
 
 val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
 @Composable
-fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, taskGroup: String?) {
+fun UpdateTaskScreen(snackBarHostState: SnackbarHostState, taskId: String?, taskGroup: String?) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -828,7 +827,7 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
                     description.isBlank() || startDateText == "Select date" || endDateText == "Select date" ||
                     startDate == null || endDate == null || dateError) {
                     scope.launch {
-                        snackbarHostState.showSnackbar(
+                        snackBarHostState.showSnackbar(
                             message = "Please fill all fields",
                             duration = SnackbarDuration.Short
                         )
@@ -892,7 +891,7 @@ fun UpdateTaskScreen(snackbarHostState: SnackbarHostState, taskId: String?, task
                 }
 
                 scope.launch {
-                    snackbarHostState.showSnackbar(
+                    snackBarHostState.showSnackbar(
                         message = "Task updated successfully",
                         duration = SnackbarDuration.Short
                     )
@@ -1134,6 +1133,6 @@ private suspend fun removeTaskFromOldGroup(context: Context, oldGroup: String, t
 @Preview(showSystemUi = true)
 @Composable
 private fun ShowAddTask() {
-    val snackbarHostState = SnackbarHostState()
-    UpdateTaskScreen(snackbarHostState, "10002",TaskGroup.WORK)
+    val snackBarHostState = SnackbarHostState()
+    UpdateTaskScreen(snackBarHostState, "10002",TaskGroup.WORK)
 }
