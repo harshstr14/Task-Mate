@@ -1,8 +1,12 @@
 package com.example.taskmate.notification
 
+import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.compose.foundation.Image
@@ -70,6 +74,8 @@ import com.example.taskmate.home.fonts
 import com.example.taskmate.pressScale
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -119,49 +125,6 @@ object NotificationStore {
             list.removeAll { it.id == taskId }
             prefs[LIST] = gson.toJson(list)
         }
-    }
-}
-
-class TaskDeadlineWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
-    override suspend fun doWork(): Result {
-
-        val taskId= inputData.getString("taskId") ?: return Result.failure()
-        val taskName = inputData.getString("taskName") ?: return Result.failure()
-        val progressStatus = inputData.getString("progressStatus") ?: "Pending"
-        val taskIcon = inputData.getInt("taskIcon",0)
-        val taskIconBG = inputData.getLong("taskIconBG",0L)
-
-        Log.d("TaskWorker", "Worker executed for task: $taskName")
-
-        if (progressStatus == "Completed") {
-            return Result.success()
-        }
-
-        val endMillis = inputData.getLong("endMillis", -1L)
-
-        if (endMillis <= 0L) return Result.failure()
-
-        val message = getTaskNotificationMessage(endMillis)
-
-        NotificationHelper.show(
-            applicationContext,
-            taskName,
-            message
-        )
-
-        val notification = StoredNotification(
-            id = UUID.randomUUID().toString(),
-            taskId = taskId,
-            title = "Task Ending Soon ⏳",
-            message = "$taskName • $message",
-            timestamp = System.currentTimeMillis(),
-            icon  = taskIcon,
-            iconBg = taskIconBG
-        )
-
-        NotificationStore.add(applicationContext, notification)
-
-        return Result.success()
     }
 }
 
@@ -248,49 +211,61 @@ fun formatDate(millis: Long): String {
 }
 
 fun scheduleTaskEndDateNotification(context: Context, task: Tasks) {
-    val endMillis = task.endAt
 
+    val endMillis = task.endAt
     val now = System.currentTimeMillis()
     val notifyTime = endMillis - TimeUnit.HOURS.toMillis(4)
 
-    val delay = when {
-        notifyTime > now -> notifyTime - now          // normal case
-        endMillis > now -> TimeUnit.SECONDS.toMillis(5)
+    val triggerTime = when {
+        notifyTime > now -> notifyTime
+        endMillis > now -> now + 5000 // fallback
         else -> {
-            Log.e("TaskSchedule", "Task already ended. endMillis=$endMillis now=$now")
+            Log.e("TaskSchedule", "Task already ended")
             return
         }
     }
 
-    val data = workDataOf(
-        "taskId" to task.id,
-        "taskName" to task.taskName,
-        "progressStatus" to task.progressStatus,
-        "endMillis" to endMillis,
-        "taskIcon" to task.icon,
-        "taskIconBG" to task.iconBg
+    val intent = Intent(context, TaskDeadlineReceiver::class.java).apply {
+        putExtra("taskId", task.id)
+        putExtra("taskName", task.taskName)
+        putExtra("progressStatus", task.progressStatus)
+        putExtra("endMillis", endMillis)
+        putExtra("taskIcon", task.icon)
+        putExtra("taskIconBG", task.iconBg)
+    }
+
+    val pendingIntent = PendingIntent.getBroadcast(
+        context,
+        task.id.hashCode(),
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 
-    val work = OneTimeWorkRequestBuilder<TaskDeadlineWorker>()
-        .setInitialDelay(delay, TimeUnit.MILLISECONDS)
-        .setInputData(data)
-        .addTag(task.id)
-        .build()
+    val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-    WorkManager.getInstance(context).enqueueUniqueWork(
-        task.id,
-        androidx.work.ExistingWorkPolicy.REPLACE,
-        work
+    alarmManager.setExactAndAllowWhileIdle(
+        AlarmManager.RTC_WAKEUP,
+        triggerTime,
+        pendingIntent
     )
 }
 
 fun cancelTaskNotifications(context: Context, taskId: String) {
-    WorkManager.getInstance(context)
-        .cancelAllWorkByTag(taskId)
+
+    val intent = Intent(context, TaskDeadlineReceiver::class.java)
+
+    val pendingIntent = PendingIntent.getBroadcast(
+        context,
+        taskId.hashCode(),
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+
+    val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    alarmManager.cancel(pendingIntent)
 }
 
 suspend fun notifyOverdueTasks(context: Context, tasks: List<Tasks>) {
-
     val prefs = context.getSharedPreferences(
         "overdue_prefs",
         Context.MODE_PRIVATE
