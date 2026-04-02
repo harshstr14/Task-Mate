@@ -4,10 +4,10 @@ import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.provider.Settings
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -62,11 +62,6 @@ import androidx.core.content.edit
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import androidx.work.CoroutineWorker
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.work.WorkerParameters
-import androidx.work.workDataOf
 import com.android.identity.util.UUID
 import com.example.taskmate.R
 import com.example.taskmate.home.Tasks
@@ -74,8 +69,6 @@ import com.example.taskmate.home.fonts
 import com.example.taskmate.pressScale
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -143,7 +136,7 @@ object NotificationHelper {
         }
     }
 
-    fun show(context: Context, title: String, message: String) {
+    fun show(context: Context, title: String, message: String, id: Int) {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.notification_icon)
             .setContentTitle(title)
@@ -153,12 +146,10 @@ object NotificationHelper {
             .build()
 
         context.getSystemService(NotificationManager::class.java)
-            .notify(UUID.randomUUID().hashCode(), notification)
-    }
-}
+            .notify(id, notification)
+    }}
 
 fun getTaskNotificationMessage(endMillis: Long): String {
-
     val nowMillis = System.currentTimeMillis()
 
     val now = Instant.ofEpochMilli(nowMillis)
@@ -175,7 +166,9 @@ fun getTaskNotificationMessage(endMillis: Long): String {
         endMillis < nowMillis ->
             "Ended on ${formatDate(endMillis)} – Please complete it"
 
-        // ⏰ Ending in next 4 hours
+        duration.toMinutes() < 60 ->
+            "Ending in ${duration.toMinutes()} minutes"
+
         hoursLeft in 0..4 ->
             "Ending in $hoursLeft hour${if (hoursLeft != 1L) "s" else ""}"
 
@@ -186,9 +179,6 @@ fun getTaskNotificationMessage(endMillis: Long): String {
         // 📅 Ends tomorrow
         end.toLocalDate() == now.toLocalDate().plusDays(1) ->
             "Ends tomorrow at ${formatTime(endMillis)}"
-
-        duration.toMinutes() < 60 ->
-            "Ending in ${duration.toMinutes()} minutes"
 
         // 📆 Ends later
         else ->
@@ -211,43 +201,51 @@ fun formatDate(millis: Long): String {
 }
 
 fun scheduleTaskEndDateNotification(context: Context, task: Tasks) {
-
-    val endMillis = task.endAt
     val now = System.currentTimeMillis()
-    val notifyTime = endMillis - TimeUnit.HOURS.toMillis(4)
 
-    val triggerTime = when {
-        notifyTime > now -> notifyTime
-        endMillis > now -> now + 5000 // fallback
-        else -> {
-            Log.e("TaskSchedule", "Task already ended")
-            return
-        }
-    }
-
-    val intent = Intent(context, TaskDeadlineReceiver::class.java).apply {
-        putExtra("taskId", task.id)
-        putExtra("taskName", task.taskName)
-        putExtra("progressStatus", task.progressStatus)
-        putExtra("endMillis", endMillis)
-        putExtra("taskIcon", task.icon)
-        putExtra("taskIconBG", task.iconBg)
-    }
-
-    val pendingIntent = PendingIntent.getBroadcast(
-        context,
-        task.id.hashCode(),
-        intent,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    val times = listOf(
+        task.endAt - TimeUnit.HOURS.toMillis(4),
+        task.endAt - TimeUnit.HOURS.toMillis(1),
+        task.endAt - TimeUnit.MINUTES.toMillis(30),
+        task.endAt
     )
 
     val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-    alarmManager.setExactAndAllowWhileIdle(
-        AlarmManager.RTC_WAKEUP,
-        triggerTime,
-        pendingIntent
-    )
+    times.forEachIndexed { index, time ->
+        if (time <= now) return@forEachIndexed
+
+        val intent = Intent(context, TaskDeadlineReceiver::class.java).apply {
+            putExtra("taskId", task.id)
+            putExtra("taskName", task.taskName)
+            putExtra("endMillis", task.endAt)
+            putExtra("taskIcon", task.icon)
+            putExtra("taskIconBG", task.iconBg)
+        }
+
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            (task.id + index).hashCode(), // unique per alarm
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (alarmManager.canScheduleExactAlarms()) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    time,
+                    pendingIntent
+                )
+            }
+        } else {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                time,
+                pendingIntent
+            )
+        }
+    }
 }
 
 fun cancelTaskNotifications(context: Context, taskId: String) {
@@ -286,9 +284,11 @@ suspend fun notifyOverdueTasks(context: Context, tasks: List<Tasks>) {
 
             NotificationHelper.show(
                 context,
+                task.taskName,
                 "Task Overdue 🚨",
-                task.taskName
+                task.id.hashCode()
             )
+
 
             val notification = StoredNotification(
                 id = UUID.randomUUID().toString(),
@@ -466,7 +466,9 @@ fun NotificationScreen(snackBarHostState: SnackbarHostState) {
                                     shape = RoundedCornerShape(9.dp)),
                                     contentAlignment = Alignment.Center
                                 )  {
-                                    Image(modifier = Modifier.size(20.dp), painter = painterResource(task.icon), contentDescription = "briefcase")
+                                    Image(modifier = Modifier.size(20.dp),
+                                        painter = painterResource(if (task.icon != 0) task.icon else R.drawable.notification_icon),
+                                        contentDescription = "briefcase")
                                 }
 
                                 Text(task.title, modifier = Modifier.constrainAs(taskNameText) {

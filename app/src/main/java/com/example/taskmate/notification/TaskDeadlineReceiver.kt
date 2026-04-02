@@ -7,6 +7,7 @@ import com.android.identity.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 
 class TaskDeadlineReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -21,26 +22,41 @@ class TaskDeadlineReceiver : BroadcastReceiver() {
         if (progressStatus == "Completed") return
         if (endMillis <= 0L) return
 
+        val now = System.currentTimeMillis()
+
+        val title = when {
+            endMillis < now -> "Task Overdue 🚨"
+            endMillis - now <= TimeUnit.HOURS.toMillis(1) -> "Ending Soon ⏳"
+            else -> "Task Reminder 📌"
+        }
+
         val message = getTaskNotificationMessage(endMillis)
 
         NotificationHelper.show(
             context,
             taskName,
-            message
+            message,
+            taskId.hashCode()
         )
 
         val notification = StoredNotification(
             id = UUID.randomUUID().toString(),
             taskId = taskId,
-            title = "Task Ending Soon ⏳",
+            title = title,
             message = "$taskName • $message",
             timestamp = System.currentTimeMillis(),
             icon = taskIcon,
             iconBg = taskIconBG
         )
 
+        val pendingResult = goAsync()
+
         CoroutineScope(Dispatchers.IO).launch {
-            NotificationStore.add(context, notification)
+            try {
+                NotificationStore.add(context, notification)
+            } finally {
+                pendingResult.finish()
+            }
         }
     }
 }
